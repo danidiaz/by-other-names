@@ -1,4 +1,4 @@
-module ByOtherNames.JSON
+module ByOtherNames.Aeson
   ( module ByOtherNames,
     JSON,
   )
