@@ -1,10 +1,10 @@
-module ByOtherNames.Aeson
+module ByOtherNames.JSON
   ( module ByOtherNames,
-    Aeson,
+    JSON,
   )
 where
 
 import ByOtherNames
 import Data.Aeson
 
-data Aeson = Aeson
+data JSON = JSON
