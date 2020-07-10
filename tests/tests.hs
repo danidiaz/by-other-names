@@ -19,8 +19,8 @@ data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
             deriving (Read, Show, Generic)
             deriving FromJSON via (FromJSONRecord "obj" Foo)
 
-instance Aliased JSON Foo where
-  aliases _ _ = 
+instance Aliased 'JSON Foo where
+  aliases = 
     fieldAliases
     $ alias (Proxy @"aa") "foo"
     $ alias (Proxy @"bb") "bar"
@@ -32,3 +32,4 @@ foo = Foo 0 False 'f'
 
 main :: IO ()
 main = pure ()
+

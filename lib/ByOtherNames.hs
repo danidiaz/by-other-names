@@ -13,6 +13,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module ByOtherNames
   ( Aliases(..),
@@ -80,7 +81,7 @@ fieldAliases = Object . toAliases @before @tree @a
 
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
-  aliases :: Proxy k -> Proxy r -> Aliases (AliasesType k) (Rep r)
+  aliases :: Aliases (AliasesType k) (Rep r)
 
 type Rubric :: k -> Constraint
 class Rubric k where
