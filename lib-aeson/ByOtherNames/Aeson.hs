@@ -13,7 +13,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 module ByOtherNames.Aeson
   ( 
-    JSON(..),
+    JSONKind(..),
     FromJSONRecord(..)
   )
 where
@@ -27,10 +27,10 @@ import Data.Kind
 import GHC.Generics
 import GHC.TypeLits
 
-data JSON = JSON
+data JSONKind = JSON
 
-instance Rubric 'JSON where
-    type AliasesType 'JSON = Text
+instance Rubric JSON where
+    type AliasesType JSON = Text
 
 newtype FieldParser a = FieldParser { getFieldParser :: Object -> Parser a }
                       deriving (Functor,Applicative) via ((->) Object `Compose` Parser)
@@ -51,7 +51,7 @@ newtype FromJSONRecord s r = FromJSONRecord r
       
 instance (KnownSymbol s, Aliased 'JSON r, Rep r ~ D1 x (C1 y prod), FieldFromJSON prod) => FromJSON (FromJSONRecord s r) where
     parseJSON v = 
-        let ByOtherNames.Object prod = aliases @JSON @'JSON @r 
+        let ByOtherNames.Object prod = aliases @JSONKind @JSON @r 
             FieldParser parser = fieldParser prod 
          in FromJSONRecord . to . M1 . M1 <$> withObject (symbolVal (Proxy @s)) parser v
 
