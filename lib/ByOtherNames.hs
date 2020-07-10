@@ -23,7 +23,7 @@ module ByOtherNames
     Aliased (aliases),
     module Data.Proxy,
     Symbol,
-    Rubric(Alias)
+    Rubric(AliasesType)
   )
 where
 
@@ -84,5 +84,5 @@ class Generic r => Aliased k a r | k -> a where
 
 type Rubric :: k -> Constraint
 class Rubric k where
-    type Alias k :: Type
+    type AliasesType k :: Type
 

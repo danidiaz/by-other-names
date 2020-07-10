@@ -16,7 +16,7 @@ import Data.Functor.Compose
 data JSON = JSON
 
 instance Rubric JSON where
-    type Alias JSON = Text
+    type AliasesType JSON = Text
 
 
 newtype FieldParser a = FieldFromJSON (Object -> Parser a) 
