@@ -15,7 +15,7 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module ByOtherNames
-  ( Aliases,
+  ( Aliases(..),
     AliasList,
     fieldAliases,
     alias,
