@@ -33,7 +33,7 @@ type FieldFromJSON :: (Type -> Type) -> Constraint
 class FieldFromJSON t where
     fieldParser :: Aliases Text t -> FieldParser (t x)
 
--- instance FromJSON v => FieldFromJSON (S1 ('MetaSel (Just symbol) x y z) (Rec0 v)) where
---     fieldParser (Leaf fieldName) = FieldParser \o -> explicitParseField parseJSON o fieldName
+instance FromJSON v => FieldFromJSON (S1 ('MetaSel (Just symbol) x y z) (Rec0 v)) where
+    fieldParser (Leaf fieldName) = FieldParser \o -> M1 . K1 <$> explicitParseField parseJSON o fieldName
 
 
