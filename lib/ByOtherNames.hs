@@ -23,7 +23,7 @@ module ByOtherNames
     Aliased (aliases),
     module Data.Proxy,
     Symbol,
-    Rubric
+    Rubric(Alias)
   )
 where
 
@@ -34,7 +34,7 @@ import GHC.TypeLits
 
 type Aliases :: Type -> (Type -> Type) -> Type
 data Aliases a rep where
-  Alias :: a -> Aliases a (S1 ('MetaSel (Just symbol) x y z) v)
+  Leaf :: a -> Aliases a (S1 ('MetaSel (Just symbol) x y z) v)
   Prod ::
     Aliases a left ->
     Aliases a right ->
@@ -62,7 +62,7 @@ class AliasTree before rep after | before rep -> after where
   parseAliasTree :: AliasList a before -> (Aliases a rep, AliasList a after)
 
 instance AliasTree (name : names) (S1 ('MetaSel (Just name) x y z) v) names where
-  parseAliasTree (Cons _ a rest) = (Alias a, rest)
+  parseAliasTree (Cons _ a rest) = (Leaf a, rest)
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :*: right) end where
   parseAliasTree as =
