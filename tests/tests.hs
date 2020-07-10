@@ -4,28 +4,31 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE DerivingVia #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
 import ByOtherNames
+import ByOtherNames.Aeson
 import GHC.Generics
+import GHC.TypeLits
+import Data.Aeson
 
-data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char} deriving (Read, Show, Generic)
+data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char} 
+            deriving (Read, Show, Generic)
+            deriving FromJSON via (FromJSONRecord "obj" Foo)
 
-foo :: Foo
-foo = Foo 0 False 'f'
-
--- forgetting the name of a field causes a type error, as it should be
-fooAliases :: Aliases String (Rep Foo)
-fooAliases =
-  fieldAliases
+instance Aliased JSON Foo where
+  aliases _ _ = 
+    fieldAliases
     $ alias (Proxy @"aa") "foo"
     $ alias (Proxy @"bb") "bar"
     $ alias (Proxy @"cc") "baz"
     $ aliasListEnd
 
-instance Aliased () String Foo where
-  aliases _ _ = fooAliases
+foo :: Foo
+foo = Foo 0 False 'f'
 
 main :: IO ()
 main = pure ()

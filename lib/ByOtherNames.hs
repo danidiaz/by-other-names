@@ -78,9 +78,9 @@ toAliases names =
 fieldAliases :: forall before tree a x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
 fieldAliases = Object . toAliases @before @tree @a
 
-type Aliased :: k -> Type -> Type -> Constraint
-class Generic r => Aliased k a r | k -> a where
-  aliases :: Proxy k -> Proxy r -> Aliases a (Rep r)
+type Aliased :: k -> Type -> Constraint
+class (Rubric k, Generic r) => Aliased k r where
+  aliases :: Proxy k -> Proxy r -> Aliases (AliasesType k) (Rep r)
 
 type Rubric :: k -> Constraint
 class Rubric k where
