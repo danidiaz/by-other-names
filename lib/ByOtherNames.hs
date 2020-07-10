@@ -53,7 +53,10 @@ aliasListEnd :: AliasList a '[]
 aliasListEnd = Null
 
 type AliasTree :: [Symbol] -> (Type -> Type) -> [Symbol] -> Constraint
-class AliasTree before rep after | before rep -> after where
+-- Note that we could add the functional dependency "rep after -> before", but
+-- we don't want that because it would allow us to omit the field name
+-- annotation when giving the aliases. We *don't* want inference there!
+class AliasTree before rep after | before rep -> after where 
   parseAliasTree :: AliasList a before -> (Aliases a rep, AliasList a after)
 
 instance AliasTree (name : names) (S1 ('MetaSel (Just name) x y z) v) names where
