@@ -16,7 +16,7 @@
 module ByOtherNames
   ( Aliases,
     AliasList,
-    aliasListBegin,
+    fieldAliases,
     alias,
     aliasListEnd,
     Aliased (aliases),
@@ -70,8 +70,8 @@ toAliases names =
   let (aliases, Null) = parseAliasTree @before @tree names
    in aliases
 
-aliasListBegin :: forall before tree a x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
-aliasListBegin = Object . toAliases @before @tree @a
+fieldAliases :: forall before tree a x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
+fieldAliases = Object . toAliases @before @tree @a
 
 type Aliased :: k -> Type -> Type -> Constraint
 class Generic r => Aliased k a r | k -> a where

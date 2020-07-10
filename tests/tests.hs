@@ -18,7 +18,7 @@ foo = Foo 0 False 'f'
 -- forgetting the name of a field causes a type error, as it should be
 fooAliases :: Aliases String (Rep Foo)
 fooAliases =
-  aliasListBegin
+  fieldAliases
     $ alias (Proxy @"aa") "foo"
     $ alias (Proxy @"bb") "bar"
     $ alias (Proxy @"cc") "baz"
