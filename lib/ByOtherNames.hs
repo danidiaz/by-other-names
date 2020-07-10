@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
@@ -9,14 +10,13 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
 
 module ByOtherNames
-  ( Aliases(..),
+  ( Aliases (..),
     AliasList,
     fieldAliases,
     alias,
@@ -24,7 +24,7 @@ module ByOtherNames
     Aliased (aliases),
     module Data.Proxy,
     Symbol,
-    Rubric(AliasesType)
+    Rubric (..),
   )
 where
 
@@ -59,7 +59,7 @@ type AliasTree :: [Symbol] -> (Type -> Type) -> [Symbol] -> Constraint
 -- Note that we could add the functional dependency "rep after -> before", but
 -- we don't want that because it would allow us to omit the field name
 -- annotation when giving the aliases. We *don't* want inference there!
-class AliasTree before rep after | before rep -> after where 
+class AliasTree before rep after | before rep -> after where
   parseAliasTree :: AliasList a before -> (Aliases a rep, AliasList a after)
 
 instance AliasTree (name : names) (S1 ('MetaSel (Just name) x y z) v) names where
@@ -81,9 +81,8 @@ fieldAliases = Object . toAliases @before @tree @a
 
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
-  aliases :: Aliases (AliasesType k) (Rep r)
+  aliases :: Aliases (ForRubric k) (Rep r)
 
 type Rubric :: k -> Constraint
 class Rubric k where
-    type AliasesType k :: Type
-
+  type ForRubric k :: Type
