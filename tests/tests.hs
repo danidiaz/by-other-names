@@ -17,7 +17,7 @@ import GHC.TypeLits
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
   deriving (Read, Show, Generic)
-  deriving (FromJSON) via (JSONRecord "obj" Foo)
+  deriving (FromJSON,ToJSON) via (JSONRecord "obj" Foo)
 
 instance Aliased JSON Foo where
   aliases =
