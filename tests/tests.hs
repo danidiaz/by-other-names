@@ -9,7 +9,6 @@
 
 module Main where
 
-import ByOtherNames
 import ByOtherNames.Aeson
 import Data.Aeson
 import GHC.Generics

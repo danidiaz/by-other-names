@@ -15,9 +15,18 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module ByOtherNames.Aeson
-  ( JSONRubric (..),
+  ( 
+    JSONRubric (..),
     JSONRecord (..),
     JSONSum (..),
+    Aliased(aliases),
+    fieldAliases,
+    branchAliases,
+    alias,
+    aliasListEnd,
+    Proxy(..),
+    FromJSON,
+    ToJSON
   )
 where
 
