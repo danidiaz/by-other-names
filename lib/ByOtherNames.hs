@@ -34,6 +34,11 @@ import Data.Proxy
 import GHC.Generics
 import GHC.TypeLits
 
+-- This datatype carries the field aliases and matches the structure of the
+-- generic Rep' shape.
+
+-- It checks (for records) that field have names, but doesn't impose any
+-- constraint on the names. Ditto for branches.
 type Aliases :: Type -> (Type -> Type) -> Type
 data Aliases a rep where
   Leaf :: a -> Aliases a (S1 ('MetaSel (Just name) su ss ds) v)
@@ -66,6 +71,11 @@ alias = Cons
 aliasListEnd :: AliasList a '[]
 aliasListEnd = Null
 
+-- This typeclass converts the list-representation of aliases to the tree of
+-- aliases that matches the generic Rep's shape.  
+--
+-- Also, quite importantly, it ensures that the field names in the list match
+-- the field names in the Rep. 
 type AliasTree :: [Symbol] -> (Type -> Type) -> [Symbol] -> Constraint
 -- Note that we could add the functional dependency "rep after -> before", but
 -- we don't want that because it would allow us to omit the field name
