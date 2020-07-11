@@ -47,6 +47,7 @@ data Aliases a rep where
     Aliases a left ->
     Aliases a right ->
     Aliases a (left :+: right)
+  -- is this constructor "overspecified"?
   SumObject :: 
     Aliases a (left :+: right) ->
     Aliases a (D1 x (left :+: right))
@@ -111,3 +112,4 @@ class (Rubric k, Generic r) => Aliased k r where
 type Rubric :: k -> Constraint
 class Rubric k where
   type ForRubric k :: Type
+

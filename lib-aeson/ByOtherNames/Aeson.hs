@@ -99,7 +99,7 @@ class BranchesToJSON t where
 instance ToJSON v => BranchesToJSON (C1 x (S1 y (Rec0 v))) where
   branchConverter (Ctor fieldName) = BranchConverter \(M1 (M1 (K1 v))) -> object [(fieldName,toJSON v)]
 
-instance ToJSON v => BranchesToJSON (C1 x U1) where
+instance BranchesToJSON (C1 x U1) where
   branchConverter (Ctor fieldName) = BranchConverter \(M1 U1) -> object [(fieldName,Null)]
 
 instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+: right) where
@@ -112,10 +112,9 @@ instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+:
             let BranchConverter rightConverter = branchConverter right 
              in rightConverter rightBranch
 
-instance (Aliased JSON r, Rep r ~ D1 x branches, BranchesToJSON branches) => ToJSON (JSONSum r) where
+instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+: right)) => ToJSON (JSONSum r) where
   toJSON (JSONSum (from -> M1 a)) =
     let ByOtherNames.SumObject branches = aliases @JSONRubric @JSON @r
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
-
 
