@@ -26,9 +26,13 @@ instance Aliased JSON Foo where
       $ alias (Proxy @"bb") "bar"
       $ alias (Proxy @"cc") "baz"
       $ aliasListEnd
-
 foo :: Foo
 foo = Foo 0 False 'f'
+
+data Summy = Aa Int
+           | Bb Bool
+           | Cc
+  deriving (Read, Show, Generic)
 
 main :: IO ()
 main = pure ()
