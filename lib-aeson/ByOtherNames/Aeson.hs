@@ -90,7 +90,14 @@ instance (Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsToJSON prod) => ToJSON
 
 --
 --
-newtype BranchParser a = BranchParser (a -> Value)
+newtype BranchParser a = BranchParser (Object -> Parser a)
+
+type BranchesFromJSON :: (Type -> Type) -> Constraint
+class BranchesFromJSON t where
+  branchParser :: Aliases Text t -> BranchParser (t x)
+
+instance FromJSON v => BranchesFromJSON (C1 x (S1 y (Rec0 v))) where
+  branchParser (Ctor fieldName) = BranchParser \o -> _
 
 --
 --
