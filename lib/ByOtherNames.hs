@@ -48,8 +48,8 @@ data Aliases a rep where
     Aliases a right ->
     Aliases a (left :+: right)
   SumObject :: 
-    Aliases a prod ->
-    Aliases a (D1 x prod)
+    Aliases a (left :+: right) ->
+    Aliases a (D1 x (left :+: right))
   Object ::
     Aliases a prod ->
     Aliases a (D1 x (C1 y prod))
@@ -101,8 +101,8 @@ toAliases names =
 fieldAliases :: forall before tree a x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
 fieldAliases = Object . toAliases @before @tree @a
 
-branchAliases :: forall before tree a x . (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x tree)
-branchAliases = SumObject . toAliases @before @tree @a
+branchAliases :: forall before left right a x . (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
+branchAliases = SumObject . toAliases @before @(left :+: right) @a
 
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
