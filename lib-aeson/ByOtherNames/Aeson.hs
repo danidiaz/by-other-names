@@ -91,33 +91,30 @@ instance (Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsToJSON prod) => ToJSON
 
 --
 --
-newtype BranchParser a = BranchParser (Object -> Parser a)
-
 type BranchesFromJSON :: (Type -> Type) -> Constraint
 class BranchesFromJSON t where
-  branchParser :: Aliases Text t -> BranchParser (t x)
+  branchParser :: Aliases Text t -> Object -> Parser (t x)
 
 instance FromJSON v => BranchesFromJSON (C1 x (S1 y (Rec0 v))) where
-  branchParser (Branch fieldName) = BranchParser \o -> 
-    do value <- o .: fieldName
-       M1 . M1 . K1 <$> parseJSON value
+  branchParser (Branch fieldName) = \o ->
+    do
+      value <- o .: fieldName
+      M1 . M1 . K1 <$> parseJSON value
 
 instance BranchesFromJSON (C1 x U1) where
-  branchParser (Branch fieldName) = BranchParser \o -> 
-    do (_ :: Value) <- o .: fieldName 
-       pure $ M1 U1
+  branchParser (Branch fieldName) = \o ->
+    do
+      (_ :: Value) <- o .: fieldName
+      pure $ M1 U1
 
 instance (BranchesFromJSON left, BranchesFromJSON right) => BranchesFromJSON (left :+: right) where
-  branchParser (BranchTree left right) = BranchParser \o ->
-    let BranchParser l = branchParser left
-        BranchParser r = branchParser right
-     in (L1 <$> l o) <|> (R1 <$> r o)
+  branchParser (BranchTree left right) = \o ->
+    (L1 <$> branchParser left o) <|> (R1 <$> branchParser right o)
 
 instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x branches, BranchesFromJSON branches) => FromJSON (JSONSum s r) where
   parseJSON v =
     let Sum branches = aliases @JSONRubric @JSON @r
-        BranchParser parser = branchParser branches
-     in JSONSum . to . M1 <$> withObject (symbolVal (Proxy @s)) parser v
+     in JSONSum . to . M1 <$> withObject (symbolVal (Proxy @s)) (branchParser branches) v
 
 --
 --
