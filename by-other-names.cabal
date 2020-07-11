@@ -22,6 +22,7 @@ library
   exposed-modules:     ByOtherNames
   build-depends:       base                 >= 4.10.0.0 && < 5
   hs-source-dirs:      lib
+  ghc-options: -W
   default-language:    Haskell2010
 
 library aeson-adapter
@@ -31,6 +32,8 @@ library aeson-adapter
                        text                 >= 1.2.3.0,
                        by-other-names
   hs-source-dirs:      lib-aeson
+  -- https://downloads.haskell.org/ghc/latest/docs/html/users_guide/using-warnings.html
+  ghc-options: -W
   visibility:          public
   default-language:    Haskell2010
 

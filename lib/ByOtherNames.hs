@@ -19,6 +19,7 @@ module ByOtherNames
   ( Aliases (..),
     AliasList,
     fieldAliases,
+    branchAliases,
     alias,
     aliasListEnd,
     Aliased (aliases),
@@ -99,6 +100,9 @@ toAliases names =
 
 fieldAliases :: forall before tree a x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
 fieldAliases = Object . toAliases @before @tree @a
+
+branchAliases :: forall before tree a x . (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x tree)
+branchAliases = SumObject . toAliases @before @tree @a
 
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where

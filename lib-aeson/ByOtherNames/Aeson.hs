@@ -17,6 +17,7 @@
 module ByOtherNames.Aeson
   ( JSONRubric (..),
     JSONRecord (..),
+    JSONSum (..),
   )
 where
 
@@ -36,6 +37,9 @@ instance Rubric JSON where
 
 type JSONRecord :: Symbol -> Type -> Type
 newtype JSONRecord s r = JSONRecord r
+
+type JSONSum :: Type -> Type
+newtype JSONSum r = JSONSum r
 
 --
 --
@@ -83,4 +87,35 @@ instance (Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsToJSON prod) => ToJSON
     let ByOtherNames.Object prod = aliases @JSONRubric @JSON @r
         FieldConverter fieldsToValues = fieldConverter prod
      in object (fieldsToValues a)
+
+--
+--
+newtype BranchConverter a = BranchConverter ( a -> Value )
+
+type BranchesToJSON :: (Type -> Type) -> Constraint
+class BranchesToJSON t where
+  branchConverter :: Aliases Text t -> BranchConverter (t x)
+
+instance ToJSON v => BranchesToJSON (C1 x (S1 y (Rec0 v))) where
+  branchConverter (Ctor fieldName) = BranchConverter \(M1 (M1 (K1 v))) -> object [(fieldName,toJSON v)]
+
+instance ToJSON v => BranchesToJSON (C1 x U1) where
+  branchConverter (Ctor fieldName) = BranchConverter \(M1 U1) -> object [(fieldName,Null)]
+
+instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+: right) where
+  branchConverter (Sum left right) =
+     BranchConverter \alternatives -> case alternatives of 
+        L1 leftBranch -> 
+            let BranchConverter leftConverter = branchConverter left 
+             in leftConverter leftBranch
+        R1 rightBranch -> 
+            let BranchConverter rightConverter = branchConverter right 
+             in rightConverter rightBranch
+
+instance (Aliased JSON r, Rep r ~ D1 x branches, BranchesToJSON branches) => ToJSON (JSONSum r) where
+  toJSON (JSONSum (from -> M1 a)) =
+    let ByOtherNames.SumObject branches = aliases @JSONRubric @JSON @r
+        BranchConverter branchesToValues = branchConverter branches
+     in branchesToValues a
+
 

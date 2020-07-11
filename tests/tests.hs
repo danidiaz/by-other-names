@@ -33,6 +33,15 @@ data Summy = Aa Int
            | Bb Bool
            | Cc
   deriving (Read, Show, Generic)
+  deriving (ToJSON) via (JSONSum Summy)
+
+instance Aliased JSON Summy where
+  aliases =
+    branchAliases
+      $ alias (Proxy @"Aa") "Aax"
+      $ alias (Proxy @"Bb") "Bbx"
+      $ alias (Proxy @"Cc") "Ccx"
+      $ aliasListEnd
 
 main :: IO ()
 main = pure ()
