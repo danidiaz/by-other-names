@@ -41,22 +41,22 @@ import GHC.TypeLits
 -- constraint on the names. Ditto for branches.
 type Aliases :: Type -> (Type -> Type) -> Type
 data Aliases a rep where
-  Leaf :: a -> Aliases a (S1 ('MetaSel (Just name) su ss ds) v)
+  Field :: a -> Aliases a (S1 ('MetaSel (Just name) su ss ds) v)
   -- we dont' allow constructors with selectors
-  Ctor :: a -> Aliases a (C1 ('MetaCons name fixity 'False) v)
-  Prod ::
+  Branch :: a -> Aliases a (C1 ('MetaCons name fixity 'False) v)
+  FieldTree ::
     Aliases a left ->
     Aliases a right ->
     Aliases a (left :*: right)
-  Sum ::
+  BranchTree ::
     Aliases a left ->
     Aliases a right ->
     Aliases a (left :+: right)
   -- is this constructor "overspecified"?
-  SumObject ::
+  Sum ::
     Aliases a (left :+: right) ->
     Aliases a (D1 x (left :+: right))
-  Object ::
+  Record ::
     Aliases a prod ->
     Aliases a (D1 x (C1 y prod))
 
@@ -84,23 +84,23 @@ class AliasTree before rep after | before rep -> after where
   parseAliasTree :: AliasList a before -> (Aliases a rep, AliasList a after)
 
 instance AliasTree (name : names) (S1 ('MetaSel (Just name) x y z) v) names where
-  parseAliasTree (Cons _ a rest) = (Leaf a, rest)
+  parseAliasTree (Cons _ a rest) = (Field a, rest)
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :*: right) end where
   parseAliasTree as =
     let (left, middle) = parseAliasTree @before as
         (right, end) = parseAliasTree @middle middle
-     in (Prod left right, end)
+     in (FieldTree left right, end)
 
 --
 instance AliasTree (name : names) (C1 ('MetaCons name fixity False) slots) names where
-  parseAliasTree (Cons _ a rest) = (Ctor a, rest)
+  parseAliasTree (Cons _ a rest) = (Branch a, rest)
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :+: right) end where
   parseAliasTree as =
     let (left, middle) = parseAliasTree @before as
         (right, end) = parseAliasTree @middle middle
-     in (Sum left right, end)
+     in (BranchTree left right, end)
 
 --
 
@@ -110,10 +110,10 @@ toAliases names =
    in aliases
 
 fieldAliases :: forall before tree a x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
-fieldAliases = Object . toAliases @before @tree @a
+fieldAliases = Record . toAliases @before @tree @a
 
 branchAliases :: forall before left right a x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
-branchAliases = SumObject . toAliases @before @(left :+: right) @a
+branchAliases = Sum . toAliases @before @(left :+: right) @a
 
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where

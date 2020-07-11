@@ -51,15 +51,15 @@ class FieldsFromJSON t where
   fieldParser :: Aliases Text t -> FieldParser (t x)
 
 instance FromJSON v => FieldsFromJSON (S1 x (Rec0 v)) where
-  fieldParser (Leaf fieldName) = FieldParser \o -> M1 . K1 <$> explicitParseField parseJSON o fieldName
+  fieldParser (Field fieldName) = FieldParser \o -> M1 . K1 <$> explicitParseField parseJSON o fieldName
 
 instance (FieldsFromJSON left, FieldsFromJSON right) => FieldsFromJSON (left :*: right) where
-  fieldParser (Prod left right) =
+  fieldParser (FieldTree left right) =
     (:*:) <$> fieldParser left <*> fieldParser right
 
 instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsFromJSON prod) => FromJSON (JSONRecord s r) where
   parseJSON v =
-    let ByOtherNames.Object prod = aliases @JSONRubric @JSON @r
+    let Record prod = aliases @JSONRubric @JSON @r
         FieldParser parser = fieldParser prod
      in JSONRecord . to . M1 . M1 <$> withObject (symbolVal (Proxy @s)) parser v
 
@@ -73,10 +73,10 @@ class FieldsToJSON t where
   fieldConverter :: Aliases Text t -> FieldConverter (t x)
 
 instance ToJSON v => FieldsToJSON (S1 x (Rec0 v)) where
-  fieldConverter (Leaf fieldName) = FieldConverter \(M1 (K1 v)) -> [(fieldName, toJSON v)]
+  fieldConverter (Field fieldName) = FieldConverter \(M1 (K1 v)) -> [(fieldName, toJSON v)]
 
 instance (FieldsToJSON left, FieldsToJSON right) => FieldsToJSON (left :*: right) where
-  fieldConverter (Prod left right) =
+  fieldConverter (FieldTree left right) =
     FieldConverter \(leftFields :*: rightFields) ->
       let FieldConverter leftConverter = fieldConverter left
           FieldConverter rightConverter = fieldConverter right
@@ -84,7 +84,7 @@ instance (FieldsToJSON left, FieldsToJSON right) => FieldsToJSON (left :*: right
 
 instance (Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsToJSON prod) => ToJSON (JSONRecord s r) where
   toJSON (JSONRecord (from -> M1 (M1 a))) =
-    let ByOtherNames.Object prod = aliases @JSONRubric @JSON @r
+    let Record prod = aliases @JSONRubric @JSON @r
         FieldConverter fieldsToValues = fieldConverter prod
      in object (fieldsToValues a)
 
@@ -97,7 +97,7 @@ class BranchesFromJSON t where
   branchParser :: Aliases Text t -> BranchParser (t x)
 
 instance FromJSON v => BranchesFromJSON (C1 x (S1 y (Rec0 v))) where
-  branchParser (Ctor fieldName) = BranchParser \o -> _
+  branchParser (Branch fieldName) = BranchParser \o -> _
 
 --
 --
@@ -108,13 +108,13 @@ class BranchesToJSON t where
   branchConverter :: Aliases Text t -> BranchConverter (t x)
 
 instance ToJSON v => BranchesToJSON (C1 x (S1 y (Rec0 v))) where
-  branchConverter (Ctor fieldName) = BranchConverter \(M1 (M1 (K1 v))) -> object [(fieldName, toJSON v)]
+  branchConverter (Branch fieldName) = BranchConverter \(M1 (M1 (K1 v))) -> object [(fieldName, toJSON v)]
 
 instance BranchesToJSON (C1 x U1) where
-  branchConverter (Ctor fieldName) = BranchConverter \(M1 U1) -> object [(fieldName, Null)]
+  branchConverter (Branch fieldName) = BranchConverter \(M1 U1) -> object [(fieldName, Null)]
 
 instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+: right) where
-  branchConverter (Sum left right) =
+  branchConverter (BranchTree left right) =
     BranchConverter \alternatives -> case alternatives of
       L1 leftBranch ->
         let BranchConverter leftConverter = branchConverter left
@@ -125,6 +125,6 @@ instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+:
 
 instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+: right)) => ToJSON (JSONSum s r) where
   toJSON (JSONSum (from -> M1 a)) =
-    let ByOtherNames.SumObject branches = aliases @JSONRubric @JSON @r
+    let Sum branches = aliases @JSONRubric @JSON @r
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
