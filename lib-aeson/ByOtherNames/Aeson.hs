@@ -13,8 +13,8 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 module ByOtherNames.Aeson
-  ( JSONKind (..),
-    FromJSONRecord (..),
+  ( JSONRubric (..),
+    JSONRecord (..),
   )
 where
 
@@ -27,7 +27,7 @@ import Data.Text
 import GHC.Generics
 import GHC.TypeLits
 
-data JSONKind = JSON
+data JSONRubric = JSON
 
 instance Rubric JSON where
   type ForRubric JSON = Text
@@ -35,22 +35,22 @@ instance Rubric JSON where
 newtype FieldParser a = FieldParser {getFieldParser :: Object -> Parser a}
   deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
 
-type FieldFromJSON :: (Type -> Type) -> Constraint
-class FieldFromJSON t where
+type FieldsFromJSON :: (Type -> Type) -> Constraint
+class FieldsFromJSON t where
   fieldParser :: Aliases Text t -> FieldParser (t x)
 
-instance FromJSON v => FieldFromJSON (S1 x (Rec0 v)) where
+instance FromJSON v => FieldsFromJSON (S1 x (Rec0 v)) where
   fieldParser (Leaf fieldName) = FieldParser \o -> M1 . K1 <$> explicitParseField parseJSON o fieldName
 
-instance (FieldFromJSON left, FieldFromJSON right) => FieldFromJSON (left :*: right) where
+instance (FieldsFromJSON left, FieldsFromJSON right) => FieldsFromJSON (left :*: right) where
   fieldParser (Prod left right) =
     (:*:) <$> fieldParser left <*> fieldParser right
 
-type FromJSONRecord :: Symbol -> Type -> Type
-newtype FromJSONRecord s r = FromJSONRecord r
+type JSONRecord :: Symbol -> Type -> Type
+newtype JSONRecord s r = JSONRecord r
 
-instance (KnownSymbol s, Aliased 'JSON r, Rep r ~ D1 x (C1 y prod), FieldFromJSON prod) => FromJSON (FromJSONRecord s r) where
+instance (KnownSymbol s, Aliased 'JSON r, Rep r ~ D1 x (C1 y prod), FieldsFromJSON prod) => FromJSON (JSONRecord s r) where
   parseJSON v =
-    let ByOtherNames.Object prod = aliases @JSONKind @JSON @r
+    let ByOtherNames.Object prod = aliases @JSONRubric @JSON @r
         FieldParser parser = fieldParser prod
-     in FromJSONRecord . to . M1 . M1 <$> withObject (symbolVal (Proxy @s)) parser v
+     in JSONRecord . to . M1 . M1 <$> withObject (symbolVal (Proxy @s)) parser v
