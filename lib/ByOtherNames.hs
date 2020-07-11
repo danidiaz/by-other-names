@@ -35,12 +35,20 @@ import GHC.TypeLits
 
 type Aliases :: Type -> (Type -> Type) -> Type
 data Aliases a rep where
-  Leaf :: a -> Aliases a (S1 ('MetaSel (Just symbol) x y z) v)
-  Ctor :: a -> Aliases a (C1 ('MetaCons symbol 'PrefixI 'False) v)
+  Leaf :: a -> Aliases a (S1 ('MetaSel (Just name) su ss ds) v)
+  -- we dont' allow constructors with selectors
+  Ctor :: a -> Aliases a (C1 ('MetaCons name fixity 'False) v)
   Prod ::
     Aliases a left ->
     Aliases a right ->
     Aliases a (left :*: right)
+  Sum ::
+    Aliases a left ->
+    Aliases a right ->
+    Aliases a (left :+: right)
+  SumObject :: 
+    Aliases a prod ->
+    Aliases a (D1 x prod)
   Object ::
     Aliases a prod ->
     Aliases a (D1 x (C1 y prod))
@@ -71,6 +79,18 @@ instance (AliasTree before left middle, AliasTree middle right end) => AliasTree
     let (left, middle) = parseAliasTree @before as
         (right, end) = parseAliasTree @middle middle
      in (Prod left right, end)
+
+--
+instance AliasTree (name : names) (C1 ('MetaCons name fixity False) slots) names where
+  parseAliasTree (Cons _ a rest) = (Ctor a, rest)
+
+instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :+: right) end where
+  parseAliasTree as =
+    let (left, middle) = parseAliasTree @before as
+        (right, end) = parseAliasTree @middle middle
+     in (Sum left right, end)
+--
+
 
 toAliases :: forall before tree a. AliasTree before tree '[] => AliasList a before -> Aliases a tree
 toAliases names =
