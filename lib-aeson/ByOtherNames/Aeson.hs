@@ -22,6 +22,7 @@ module ByOtherNames.Aeson
 where
 
 import ByOtherNames
+import Control.Applicative
 import Data.Aeson
 import Data.Aeson.Types
 import Data.Functor.Compose
@@ -97,7 +98,26 @@ class BranchesFromJSON t where
   branchParser :: Aliases Text t -> BranchParser (t x)
 
 instance FromJSON v => BranchesFromJSON (C1 x (S1 y (Rec0 v))) where
-  branchParser (Branch fieldName) = BranchParser \o -> _
+  branchParser (Branch fieldName) = BranchParser \o -> 
+    do value <- o .: fieldName
+       M1 . M1 . K1 <$> parseJSON value
+
+instance FromJSON v => BranchesFromJSON (C1 x U1) where
+  branchParser (Branch fieldName) = BranchParser \o -> 
+    do (_ :: Value) <- o .: fieldName 
+       pure $ M1 U1
+
+instance (BranchesFromJSON left, BranchesFromJSON right) => BranchesFromJSON (left :+: right) where
+  branchParser (BranchTree left right) = BranchParser \o ->
+    let BranchParser l = branchParser left
+        BranchParser r = branchParser right
+     in (L1 <$> l o) <|> (R1 <$> r o)
+
+instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x branches, BranchesFromJSON branches) => FromJSON (JSONSum s r) where
+  parseJSON v =
+    let Sum branches = aliases @JSONRubric @JSON @r
+        BranchParser parser = branchParser branches
+     in JSONSum . to . M1 <$> withObject (symbolVal (Proxy @s)) parser v
 
 --
 --
@@ -123,7 +143,7 @@ instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+:
         let BranchConverter rightConverter = branchConverter right
          in rightConverter rightBranch
 
-instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+: right)) => ToJSON (JSONSum s r) where
+instance (Aliased JSON r, Rep r ~ D1 x branches, BranchesToJSON branches) => ToJSON (JSONSum s r) where
   toJSON (JSONSum (from -> M1 a)) =
     let Sum branches = aliases @JSONRubric @JSON @r
         BranchConverter branchesToValues = branchConverter branches

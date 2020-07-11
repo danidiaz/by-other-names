@@ -41,9 +41,8 @@ import GHC.TypeLits
 -- constraint on the names. Ditto for branches.
 type Aliases :: Type -> (Type -> Type) -> Type
 data Aliases a rep where
-  Field :: a -> Aliases a (S1 ('MetaSel (Just name) su ss ds) v)
-  -- we dont' allow constructors with selectors
-  Branch :: a -> Aliases a (C1 ('MetaCons name fixity 'False) v)
+  Field :: a -> Aliases a (S1 metasel v)
+  Branch :: a -> Aliases a (C1 metacons v)
   FieldTree ::
     Aliases a left ->
     Aliases a right ->
@@ -52,13 +51,12 @@ data Aliases a rep where
     Aliases a left ->
     Aliases a right ->
     Aliases a (left :+: right)
-  -- is this constructor "overspecified"?
   Sum ::
-    Aliases a (left :+: right) ->
-    Aliases a (D1 x (left :+: right))
+    Aliases a branches ->
+    Aliases a (D1 x branches)
   Record ::
-    Aliases a prod ->
-    Aliases a (D1 x (C1 y prod))
+    Aliases a fields ->
+    Aliases a (D1 x (C1 y fields))
 
 type AliasList :: Type -> [Symbol] -> Type
 data AliasList a names where
@@ -103,17 +101,16 @@ instance (AliasTree before left middle, AliasTree middle right end) => AliasTree
      in (BranchTree left right, end)
 
 --
-
-toAliases :: forall before tree a. AliasTree before tree '[] => AliasList a before -> Aliases a tree
+toAliases :: forall before a tree . AliasTree before tree '[] => AliasList a before -> Aliases a tree
 toAliases names =
   let (aliases, Null) = parseAliasTree @before @tree names
    in aliases
 
-fieldAliases :: forall before tree a x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
-fieldAliases = Record . toAliases @before @tree @a
+fieldAliases :: forall before a tree x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
+fieldAliases = Record . toAliases @before @a @tree
 
-branchAliases :: forall before left right a x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
-branchAliases = Sum . toAliases @before @(left :+: right) @a
+branchAliases :: forall before a branches x. (AliasTree before branches '[]) => AliasList a before -> Aliases a (D1 x branches)
+branchAliases = Sum . toAliases @before  @a @branches
 
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
@@ -122,3 +119,4 @@ class (Rubric k, Generic r) => Aliased k r where
 type Rubric :: k -> Constraint
 class Rubric k where
   type ForRubric k :: Type
+
