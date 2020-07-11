@@ -36,6 +36,7 @@ import GHC.TypeLits
 type Aliases :: Type -> (Type -> Type) -> Type
 data Aliases a rep where
   Leaf :: a -> Aliases a (S1 ('MetaSel (Just symbol) x y z) v)
+  Ctor :: a -> Aliases a (C1 ('MetaCons symbol 'PrefixI 'False) v)
   Prod ::
     Aliases a left ->
     Aliases a right ->
