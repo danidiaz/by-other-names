@@ -102,7 +102,7 @@ instance FromJSON v => BranchesFromJSON (C1 x (S1 y (Rec0 v))) where
     do value <- o .: fieldName
        M1 . M1 . K1 <$> parseJSON value
 
-instance FromJSON v => BranchesFromJSON (C1 x U1) where
+instance BranchesFromJSON (C1 x U1) where
   branchParser (Branch fieldName) = BranchParser \o -> 
     do (_ :: Value) <- o .: fieldName 
        pure $ M1 U1

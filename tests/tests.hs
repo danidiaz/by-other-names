@@ -35,7 +35,7 @@ data Summy
   | Bb Bool
   | Cc
   deriving (Read, Show, Generic)
-  deriving (ToJSON) via (JSONSum "sum" Summy)
+  deriving (FromJSON, ToJSON) via (JSONSum "sum" Summy)
 
 instance Aliased JSON Summy where
   aliases =

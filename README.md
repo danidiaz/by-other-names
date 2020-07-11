@@ -1,6 +1,6 @@
-(**NOTE**: this is a cabal package with multiple public libraries. Hackage
-doesn't currently render correctly the Haddocks for packages with multiple
-public libraries.)
+(**NOTE**: this is a Cabal package with multiple public libraries. At the
+moment, Hackage doesn't seem to render correctly the Haddocks for packages with
+multiple public libraries.)
 
 # by-other-names
 
