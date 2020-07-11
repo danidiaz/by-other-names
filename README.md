@@ -1,5 +1,10 @@
+(**NOTE**: this is a cabal package with multiple public libraries. Hackage
+doesn't currently render correctly the Haddocks for packages with multiple
+public libraries.)
+
 # by-other-names
-Give aliases to record fields
+
+Give aliases to record fields.
 
 # stuff
 
