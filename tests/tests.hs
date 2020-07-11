@@ -17,7 +17,7 @@ import GHC.TypeLits
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
   deriving (Read, Show, Generic)
-  deriving (FromJSON,ToJSON) via (JSONRecord "obj" Foo)
+  deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
 
 instance Aliased JSON Foo where
   aliases =
@@ -26,14 +26,16 @@ instance Aliased JSON Foo where
       $ alias (Proxy @"bb") "bar"
       $ alias (Proxy @"cc") "baz"
       $ aliasListEnd
+
 foo :: Foo
 foo = Foo 0 False 'f'
 
-data Summy = Aa Int
-           | Bb Bool
-           | Cc
+data Summy
+  = Aa Int
+  | Bb Bool
+  | Cc
   deriving (Read, Show, Generic)
-  deriving (ToJSON) via (JSONSum Summy)
+  deriving (ToJSON) via (JSONSum "sum" Summy)
 
 instance Aliased JSON Summy where
   aliases =
