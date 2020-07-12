@@ -69,15 +69,15 @@ instance Aliased JSON SingleField where
         $ alias (Proxy @"single") "Aa"
         $ aliasListEnd
 
-data SingleBranch = SingleBranch Int
-  deriving (Read, Show, Eq, Generic)
-  deriving (FromJSON, ToJSON) via (JSONRecord "sng" SingleBranch)
+-- data SingleBranch = SingleBranch Int
+--   deriving (Read, Show, Eq, Generic)
+--   deriving (FromJSON, ToJSON) via (JSONSum "sng" SingleBranch)
 
-instance Aliased JSON SingleBranch where
-  aliases =
-    branchAliases
-        $ alias (Proxy @"SingleBranch") "Aa"
-        $ aliasListEnd
+-- instance Aliased JSON SingleBranch where
+--   aliases =
+--     branchAliases
+--         $ alias (Proxy @"SingleBranch") "Aa"
+--         $ aliasListEnd
 
 main :: IO ()
 main = defaultMain tests
@@ -94,7 +94,6 @@ tests = testGroup
             testCase "c" $ roundtrip $ Cc,
             testCase "d" $ roundtrip $ Dd 'f',
             testCase "e" $ roundtrip $ Ee 3
-        ],
-        testCase "sumRoundtripSingle" $ roundtrip $ SingleBranch 3
+        ]
     ]
 

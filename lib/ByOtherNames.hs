@@ -52,8 +52,8 @@ data Aliases a rep where
     Aliases a right ->
     Aliases a (left :+: right)
   Sum ::
-    Aliases a branches ->
-    Aliases a (D1 x branches)
+    Aliases a (left :+: right) ->
+    Aliases a (D1 x (left :+: right))
   Record ::
     Aliases a fields ->
     Aliases a (D1 x (C1 y fields))
@@ -109,8 +109,8 @@ toAliases names =
 fieldAliases :: forall before a tree x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
 fieldAliases = Record . toAliases @before @a @tree
 
-branchAliases :: forall before a branches x. (AliasTree before branches '[]) => AliasList a before -> Aliases a (D1 x branches)
-branchAliases = Sum . toAliases @before  @a @branches
+branchAliases :: forall before a left right x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
+branchAliases = Sum . toAliases @before  @a @(left :+: right)
 
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where

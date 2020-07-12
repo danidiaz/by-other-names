@@ -120,7 +120,7 @@ instance (BranchesFromJSON left, BranchesFromJSON right) => BranchesFromJSON (le
   branchParser (BranchTree left right) = \o ->
     (L1 <$> branchParser left o) <|> (R1 <$> branchParser right o)
 
-instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x branches, BranchesFromJSON branches) => FromJSON (JSONSum s r) where
+instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesFromJSON (left :+: right)) => FromJSON (JSONSum s r) where
   parseJSON v =
     let Sum branches = aliases @JSONRubric @JSON @r
      in JSONSum . to . M1 <$> withObject (symbolVal (Proxy @s)) (branchParser branches) v
@@ -149,8 +149,10 @@ instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+:
         let BranchConverter rightConverter = branchConverter right
          in rightConverter rightBranch
 
-instance (Aliased JSON r, Rep r ~ D1 x branches, BranchesToJSON branches) => ToJSON (JSONSum s r) where
+instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+: right)) => ToJSON (JSONSum s r) where
   toJSON (JSONSum (from -> M1 a)) =
     let Sum branches = aliases @JSONRubric @JSON @r
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
+
+
