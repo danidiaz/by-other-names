@@ -12,10 +12,11 @@ instances manually. Problem is, you have to repeat the field names once for
 `FromJSON` and once for `ToJSON`.
 
 I wanted an intermediate solution similar to what is provided by Go's [struct
-tags](https://golangcode.com/struct-tags/): associate aliases with each field
-and use those aliases when serializing/deserializing. There can be different
-sets of aliases for different contexts (json, orm...). In this library, each of
-those possible contexts is called a "rubric".
+tags](https://www.digitalocean.com/community/tutorials/how-to-use-struct-tags-in-go):
+associate aliases with each field and use those aliases when
+serializing/deserializing. There can be different sets of aliases for different
+contexts (json, orm...). In this library, each of those possible contexts is
+called a "rubric".
 
 ## How to depend on this library?
 
