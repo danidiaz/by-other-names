@@ -14,20 +14,20 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
--- | A 'Rubric' for JSON serialization using Aeson, and some helper newtypes
--- and re-exports.
+-- | A 'Rubric' for JSON serialization using Aeson, along with some helper
+-- newtypes and re-exports.
 --
 -- Required extensions:
 --
--- - LANGUAGE DataKinds
--- - LANGUAGE DeriveGeneric 
--- - LANGUAGE DerivingVia 
--- - LANGUAGE FlexibleInstances 
--- - LANGUAGE MultiParamTypeClasses
--- - LANGUAGE OverloadedStrings
--- - LANGUAGE TypeApplications
--- - LANGUAGE TypeSynonymInstances 
--- - LANGUAGE ScopedTypeVariables
+-- - DataKinds
+-- - DeriveGeneric 
+-- - DerivingVia 
+-- - FlexibleInstances 
+-- - MultiParamTypeClasses
+-- - OverloadedStrings
+-- - TypeApplications
+-- - TypeSynonymInstances 
+-- - ScopedTypeVariables
 --
 -- Example of use:
 --
