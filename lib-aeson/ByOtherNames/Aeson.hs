@@ -26,7 +26,6 @@
 -- - MultiParamTypeClasses
 -- - OverloadedStrings
 -- - TypeApplications
--- - TypeSynonymInstances 
 -- - ScopedTypeVariables
 --
 -- Example of use:

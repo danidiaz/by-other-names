@@ -56,7 +56,6 @@ Here are two example, one for a record and another for a sum type:
     {-# LANGUAGE MultiParamTypeClasses #-}
     {-# LANGUAGE OverloadedStrings #-}
     {-# LANGUAGE TypeApplications #-}
-    {-# LANGUAGE TypeSynonymInstances #-}
     {-# LANGUAGE ScopedTypeVariables #-}
     import ByOtherNames.Aeson
       ( 
