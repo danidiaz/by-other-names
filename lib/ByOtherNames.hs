@@ -15,6 +15,15 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+-- | This package provides the general mechanism for defining field and branch
+-- aliases for algebraic datatypes.
+--
+-- Aliases can be defined for multiple contexts (json serialization, orms...).
+-- Each of those contexts is termed a 'Rubric', basically a marker datakind
+-- used to namespace the aliases.
+--
+-- This module should only be imported if you want to define your own adapter
+-- package for some new `Rubric`.
 module ByOtherNames
   ( Aliases (..),
     AliasList,
@@ -34,11 +43,11 @@ import Data.Proxy
 import GHC.Generics
 import GHC.TypeLits
 
--- This datatype carries the field aliases and matches the structure of the
--- generic Rep' shape.
-
--- It checks (for records) that field have names, but doesn't impose any
--- constraint on the names. Ditto for branches.
+-- | This datatype carries the field aliases and matches the structure of the
+--   generic Rep' shape.
+--
+--   Note that the type of the aliases is polymorphic; it depends on the
+--   'Rubric'.
 type Aliases :: Type -> (Type -> Type) -> Type
 data Aliases a rep where
   Field :: a -> Aliases a (S1 metasel v)
@@ -51,6 +60,7 @@ data Aliases a rep where
     Aliases a left ->
     Aliases a right ->
     Aliases a (left :+: right)
+  -- | We force the sum to contain at least two branches.
   Sum ::
     Aliases a (left :+: right) ->
     Aliases a (D1 x (left :+: right))
@@ -58,23 +68,28 @@ data Aliases a rep where
     Aliases a fields ->
     Aliases a (D1 x (C1 y fields))
 
+-- | An intermediate datatype that makes it easier to specify the aliases.  See
+-- also 'fieldAliases' and 'branchAliases'. 
 type AliasList :: Type -> [Symbol] -> Type
 data AliasList a names where
   Null :: AliasList a '[]
   Cons :: Proxy name -> a -> AliasList a names -> AliasList a (name : names)
 
+-- | Add an alias to an `AliasList`.
 alias :: Proxy name -> a -> AliasList a names -> AliasList a (name : names)
 alias = Cons
 
+-- | The empty `AliasList`.
 aliasListEnd :: AliasList a '[]
 aliasListEnd = Null
 
--- This typeclass converts the list-representation of aliases to the tree of
--- aliases that matches the generic Rep's shape.
+-- | This typeclass converts the list-representation of aliases `AliasList` to
+-- the tree of aliases 'Aliases' that matches the generic Rep's shape.
 --
 -- Also, quite importantly, it ensures that the field names in the list match
 -- the field names in the Rep.
 type AliasTree :: [Symbol] -> (Type -> Type) -> [Symbol] -> Constraint
+
 -- Note that we could add the functional dependency "rep after -> before", but
 -- we don't want that because it would allow us to omit the field name
 -- annotation when giving the aliases. We *don't* want inference there!
@@ -106,16 +121,25 @@ toAliases names =
   let (aliases, Null) = parseAliasTree @before @tree names
    in aliases
 
+-- | Define 'Aliases' for a record type.
 fieldAliases :: forall before a tree x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
 fieldAliases = Record . toAliases @before @a @tree
 
+-- | Define 'Aliases' for a sum type.
+--
+-- The sum type can only have zero or one attributes, and they can't have selectors.
 branchAliases :: forall before a left right x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
 branchAliases = Sum . toAliases @before @a @(left :+: right)
 
+-- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
   aliases :: Aliases (ForRubric k) (Rep r)
 
+-- | Typeclass for marker datakinds used as rubrics, to classify aliases.
+--
+-- The associated type family `ForRubric` gives the type of the aliases.
 type Rubric :: k -> Constraint
 class Rubric k where
   type ForRubric k :: Type
+

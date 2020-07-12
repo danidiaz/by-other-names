@@ -15,17 +15,21 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module ByOtherNames.Aeson
-  ( JSONRubric (..),
+  ( -- * JSON helpers
+    JSONRubric (..),
     JSONRecord (..),
     JSONSum (..),
+    -- * Re-exports from ByOtherNames
     Aliased (aliases),
     fieldAliases,
     branchAliases,
     alias,
     aliasListEnd,
-    Proxy (..),
+    -- * Re-exports from Data.Aeson
     FromJSON,
     ToJSON,
+    -- * Re-exports from Data.Proxy
+    Proxy (..),
   )
 where
 
@@ -39,14 +43,25 @@ import Data.Text
 import GHC.Generics
 import GHC.TypeLits
 
+-- | Aliases for JSON serialization fall under this 'Rubric'.
+-- The constructor 'JSON' is used as a type, with DataKinds. 
 data JSONRubric = JSON
 
+-- | The aliases will be of type 'Data.Text'.
 instance Rubric JSON where
   type ForRubric JSON = Text
 
+-- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for record types,
+-- using DerivingVia.
+--
+-- The 'Symbol' type parameter is used in parse error messages.
 type JSONRecord :: Symbol -> Type -> Type
 newtype JSONRecord s r = JSONRecord r
 
+-- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for sum types,
+-- using DerivingVia.
+--
+-- The 'Symbol' type parameter is used in parse error messages.
 type JSONSum :: Symbol -> Type -> Type
 newtype JSONSum s r = JSONSum r
 
@@ -153,3 +168,4 @@ instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+
     let Sum branches = aliases @JSONRubric @JSON @r
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
+

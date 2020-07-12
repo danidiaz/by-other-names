@@ -24,6 +24,7 @@ those possible contexts is called a "rubric".
 This is a Cabal package with multiple public libraries.
 
 - **by-other-names** 
+
   The general mechanism for defining field aliases. 
 
   Only depend on this if you are developing your own adapter for some new
