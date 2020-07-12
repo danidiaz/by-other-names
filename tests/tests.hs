@@ -59,6 +59,26 @@ instance Aliased JSON Summy where
       $ alias (Proxy @"Ee") "Eex"
       $ aliasListEnd
 
+data SingleField = SingleField {single :: Int}
+  deriving (Read, Show, Eq, Generic)
+  deriving (FromJSON, ToJSON) via (JSONRecord "sng" SingleField)
+
+instance Aliased JSON SingleField where
+  aliases =
+    fieldAliases
+        $ alias (Proxy @"single") "Aa"
+        $ aliasListEnd
+
+data SingleBranch = SingleBranch Int
+  deriving (Read, Show, Eq, Generic)
+  deriving (FromJSON, ToJSON) via (JSONRecord "sng" SingleBranch)
+
+instance Aliased JSON SingleBranch where
+  aliases =
+    branchAliases
+        $ alias (Proxy @"SingleBranch") "Aa"
+        $ aliasListEnd
+
 main :: IO ()
 main = defaultMain tests
 
@@ -67,12 +87,14 @@ tests = testGroup
     "All"
     [
         testCase "recordRoundtrip" $ roundtrip $ Foo 0 False 'f' "foo" 3,
+        testCase "recordRoundtripSingle" $ roundtrip $ SingleField 3,
         testGroup "sumRoundtrip" [
             testCase "a" $ roundtrip $ Aa 5,
             testCase "b" $ roundtrip $ Bb False,
             testCase "c" $ roundtrip $ Cc,
             testCase "d" $ roundtrip $ Dd 'f',
             testCase "e" $ roundtrip $ Ee 3
-        ]
+        ],
+        testCase "sumRoundtripSingle" $ roundtrip $ SingleBranch 3
     ]
 
