@@ -14,6 +14,70 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
+-- | A 'Rubric' for JSON serialization using Aeson, and some helper newtypes
+-- and re-exports.
+--
+-- Required extensions:
+--
+-- - LANGUAGE DataKinds
+-- - LANGUAGE DeriveGeneric 
+-- - LANGUAGE DerivingVia 
+-- - LANGUAGE FlexibleInstances 
+-- - LANGUAGE MultiParamTypeClasses
+-- - LANGUAGE OverloadedStrings
+-- - LANGUAGE TypeApplications
+-- - LANGUAGE TypeSynonymInstances 
+-- - LANGUAGE ScopedTypeVariables
+--
+-- Example of use:
+--
+-- @
+-- import ByOtherNames.Aeson
+--   ( 
+--     JSONRubric (JSON),
+--     JSONRecord(..),
+--     JSONSum(..),
+--     Proxy(Proxy),
+--     Aliased,
+--     alias,
+--     aliasListEnd,
+--     aliases,
+--     fieldAliases,
+--     branchAliases
+--   )
+-- import Data.Aeson
+-- import Data.Aeson.Types
+-- import GHC.Generics
+-- import GHC.TypeLits
+--
+-- data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
+--   deriving (Read, Show, Eq, Generic)
+--   deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
+--
+-- instance Aliased JSON Foo where
+--   aliases =
+--     fieldAliases
+--       $ alias (Proxy @"aa") "aax"
+--       $ alias (Proxy @"bb") "bbx"
+--       $ alias (Proxy @"cc") "ccx"
+--       $ aliasListEnd
+--
+-- data Summy
+--   = Aa Int
+--   | Bb Bool
+--   | Cc
+--   deriving (Read, Show, Eq, Generic)
+--   deriving (FromJSON, ToJSON) via (JSONSum "sum" Summy)
+--
+-- instance Aliased JSON Summy where
+--   aliases =
+--     branchAliases
+--       $ alias (Proxy @"Aa") "Aax"
+--       $ alias (Proxy @"Bb") "Bbx"
+--       $ alias (Proxy @"Cc") "Ccx"
+--       $ aliasListEnd
+-- @         
+
 module ByOtherNames.Aeson
   ( -- * JSON helpers
     JSONRubric (..),
