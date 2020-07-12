@@ -14,6 +14,9 @@ import Data.Aeson
 import GHC.Generics
 import GHC.TypeLits
 
+import Test.Tasty
+import Test.Tasty.HUnit  
+
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
   deriving (Read, Show, Generic)
   deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
@@ -45,4 +48,11 @@ instance Aliased JSON Summy where
       $ aliasListEnd
 
 main :: IO ()
-main = pure ()
+main = defaultMain tests
+
+tests :: TestTree
+tests = testGroup
+    "All"
+    [
+    ]
+
