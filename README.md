@@ -111,9 +111,7 @@ that parameterize the newtypes are used in parse error messages.
 
 There are limitations on sum types though:
 
-    - Each branch can have zero or one fields, and the field can't have a
-      selector.
+- Each branch can have zero or one fields, and the field can't have a selector.
 
-    - Only the "object with a single key consisting in the branch tag" style of
-      serialization is supported.
+- Only the "object with a single key consisting in the branch tag" style of serialization is supported.
 
