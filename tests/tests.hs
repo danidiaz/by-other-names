@@ -6,38 +6,48 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import ByOtherNames.Aeson
 import Data.Aeson
+import Data.Aeson.Types
 import GHC.Generics
 import GHC.TypeLits
 
 import Test.Tasty
 import Test.Tasty.HUnit  
 
-data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
-  deriving (Read, Show, Generic)
+data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
+  deriving (Read, Show, Eq, Generic)
   deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
 
 instance Aliased JSON Foo where
   aliases =
     fieldAliases
-      $ alias (Proxy @"aa") "foo"
-      $ alias (Proxy @"bb") "bar"
-      $ alias (Proxy @"cc") "baz"
+      $ alias (Proxy @"aa") "aax"
+      $ alias (Proxy @"bb") "bbx"
+      $ alias (Proxy @"cc") "ccx"
+      $ alias (Proxy @"dd") "ddx"
+      $ alias (Proxy @"ee") "eex"
       $ aliasListEnd
-
-foo :: Foo
-foo = Foo 0 False 'f'
 
 data Summy
   = Aa Int
   | Bb Bool
   | Cc
-  deriving (Read, Show, Generic)
+  | Dd Char
+  | Ee Int
+  deriving (Read, Show, Eq, Generic)
   deriving (FromJSON, ToJSON) via (JSONSum "sum" Summy)
+
+roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO () 
+roundtrip t = 
+    let reparsed = parseEither parseJSON (toJSON t)
+     in case reparsed of
+            Left err -> assertFailure err
+            Right t' -> assertEqual "" t t'
 
 instance Aliased JSON Summy where
   aliases =
@@ -45,6 +55,8 @@ instance Aliased JSON Summy where
       $ alias (Proxy @"Aa") "Aax"
       $ alias (Proxy @"Bb") "Bbx"
       $ alias (Proxy @"Cc") "Ccx"
+      $ alias (Proxy @"Dd") "Ddx"
+      $ alias (Proxy @"Ee") "Eex"
       $ aliasListEnd
 
 main :: IO ()
@@ -54,5 +66,13 @@ tests :: TestTree
 tests = testGroup
     "All"
     [
+        testCase "recordRoundtrip" $ roundtrip $ Foo 0 False 'f' "foo" 3,
+        testGroup "sumRoundtrip" [
+            testCase "a" $ roundtrip $ Aa 5,
+            testCase "b" $ roundtrip $ Bb False,
+            testCase "c" $ roundtrip $ Cc,
+            testCase "d" $ roundtrip $ Dd 'f',
+            testCase "e" $ roundtrip $ Ee 3
+        ]
     ]
 
