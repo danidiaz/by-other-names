@@ -1,11 +1,6 @@
 (**NOTE**: see this Cabal issue https://github.com/haskell/cabal/issues/6039
 for progress in handling packages with multiple public libraries.)
 
-this is a Cabal package with [multiple public
-libraries](https://cabal.readthedocs.io/en/latest/cabal-package.html#pkg-field-library-visibility).
-At the moment, Hackage doesn't seem to render correctly the Haddocks for
-packages with multiple public libraries.)
-
 # by-other-names
 
 Give aliases to record fields.
