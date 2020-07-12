@@ -15,18 +15,17 @@
 {-# LANGUAGE ViewPatterns #-}
 
 module ByOtherNames.Aeson
-  ( 
-    JSONRubric (..),
+  ( JSONRubric (..),
     JSONRecord (..),
     JSONSum (..),
-    Aliased(aliases),
+    Aliased (aliases),
     fieldAliases,
     branchAliases,
     alias,
     aliasListEnd,
-    Proxy(..),
+    Proxy (..),
     FromJSON,
-    ToJSON
+    ToJSON,
   )
 where
 
@@ -154,5 +153,3 @@ instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+
     let Sum branches = aliases @JSONRubric @JSON @r
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
-
-

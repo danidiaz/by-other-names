@@ -4,20 +4,30 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import ByOtherNames.Aeson
+  ( Aliased,
+    JSONRecord(..),
+    JSONRubric (JSON),
+    JSONSum(..),
+    Proxy(Proxy),
+    alias,
+    aliasListEnd,
+    aliases,
+    fieldAliases,
+    branchAliases
+  )
 import Data.Aeson
 import Data.Aeson.Types
 import GHC.Generics
 import GHC.TypeLits
-
 import Test.Tasty
-import Test.Tasty.HUnit  
+import Test.Tasty.HUnit
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -42,13 +52,6 @@ data Summy
   deriving (Read, Show, Eq, Generic)
   deriving (FromJSON, ToJSON) via (JSONSum "sum" Summy)
 
-roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO () 
-roundtrip t = 
-    let reparsed = parseEither parseJSON (toJSON t)
-     in case reparsed of
-            Left err -> assertFailure err
-            Right t' -> assertEqual "" t t'
-
 instance Aliased JSON Summy where
   aliases =
     branchAliases
@@ -59,6 +62,13 @@ instance Aliased JSON Summy where
       $ alias (Proxy @"Ee") "Eex"
       $ aliasListEnd
 
+roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO ()
+roundtrip t =
+  let reparsed = parseEither parseJSON (toJSON t)
+   in case reparsed of
+        Left err -> assertFailure err
+        Right t' -> assertEqual "" t t'
+
 data SingleField = SingleField {single :: Int}
   deriving (Read, Show, Eq, Generic)
   deriving (FromJSON, ToJSON) via (JSONRecord "sng" SingleField)
@@ -66,8 +76,8 @@ data SingleField = SingleField {single :: Int}
 instance Aliased JSON SingleField where
   aliases =
     fieldAliases
-        $ alias (Proxy @"single") "Aa"
-        $ aliasListEnd
+      $ alias (Proxy @"single") "Aa"
+      $ aliasListEnd
 
 -- data SingleBranch = SingleBranch Int
 --   deriving (Read, Show, Eq, Generic)
@@ -83,17 +93,17 @@ main :: IO ()
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup
+tests =
+  testGroup
     "All"
-    [
-        testCase "recordRoundtrip" $ roundtrip $ Foo 0 False 'f' "foo" 3,
-        testCase "recordRoundtripSingle" $ roundtrip $ SingleField 3,
-        testGroup "sumRoundtrip" [
-            testCase "a" $ roundtrip $ Aa 5,
-            testCase "b" $ roundtrip $ Bb False,
-            testCase "c" $ roundtrip $ Cc,
-            testCase "d" $ roundtrip $ Dd 'f',
-            testCase "e" $ roundtrip $ Ee 3
+    [ testCase "recordRoundtrip" $ roundtrip $ Foo 0 False 'f' "foo" 3,
+      testCase "recordRoundtripSingle" $ roundtrip $ SingleField 3,
+      testGroup
+        "sumRoundtrip"
+        [ testCase "a" $ roundtrip $ Aa 5,
+          testCase "b" $ roundtrip $ Bb False,
+          testCase "c" $ roundtrip $ Cc,
+          testCase "d" $ roundtrip $ Dd 'f',
+          testCase "e" $ roundtrip $ Ee 3
         ]
     ]
-

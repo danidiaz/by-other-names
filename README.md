@@ -1,21 +1,23 @@
-(**NOTE**: this is a Cabal package with multiple public libraries. At the
-moment, Hackage doesn't seem to render correctly the Haddocks for packages with
-multiple public libraries.)
+(**NOTE**: this is a Cabal package with [multiple public
+libraries](https://cabal.readthedocs.io/en/latest/cabal-package.html#pkg-field-library-visibility).
+At the moment, Hackage doesn't seem to render correctly the Haddocks for
+packages with multiple public libraries.)
 
 # by-other-names
 
 Give aliases to record fields.
 
-When generically deriving aeson's FromJSON and ToJSON instances, field names
-are used as the keys for the serialized JSON. If you don't want that, another
-option is to write the instances manually. Problem is, you have to repeat the
-field names once for FromJSON and once for ToJSON.
+When generically deriving [aeson](http://hackage.haskell.org/package/aeson)'s
+`FromJSON` and `ToJSON` instances, field names are used as the keys for the
+serialized JSON. If you don't want that, another option is to write the
+instances manually. Problem is, you have to repeat the field names once for
+`FromJSON` and once for `ToJSON`.
 
-I wanted an intermediate solution similar to what is provided by Go's struct
-field tags: associate aliases with each field and use those aliases when
-serializing/deserializing. There can be different sets of aliases for different
-contexts (json, orm...). In this library, each of those possible contexts is
-called a "rubric".
+I wanted an intermediate solution similar to what is provided by Go's [struct
+tags](https://golangcode.com/struct-tags/): associate aliases with each field
+and use those aliases when serializing/deserializing. There can be different
+sets of aliases for different contexts (json, orm...). In this library, each of
+those possible contexts is called a "rubric".
 
 ## How to depend on this library?
 
@@ -56,6 +58,18 @@ Here are two example, one for a record and another for a sum type:
     {-# LANGUAGE TypeSynonymInstances #-}
     {-# LANGUAGE ScopedTypeVariables #-}
     import ByOtherNames.Aeson
+      ( 
+        JSONRubric (JSON),
+        JSONRecord(..),
+        JSONSum(..),
+        Proxy(Proxy),
+        Aliased,
+        alias,
+        aliasListEnd,
+        aliases,
+        fieldAliases,
+        branchAliases
+      )
     import Data.Aeson
     import Data.Aeson.Types
     import GHC.Generics
@@ -89,8 +103,10 @@ Here are two example, one for a record and another for a sum type:
           $ aliasListEnd
 
 Notice the use of
-[`-XDerivingVia`](https://downloads.haskell.org/ghc/latest/docs/html/users_guide/glasgow_exts.html?highlight=derivingvia#extension-DerivingVia)
-and the `JSONSum` and `JSONRecord` adapter newtypes.
+[`-XDerivingVia`](https://downloads.haskell.org/ghc/latest/docs/html/users_guide/glasgow_exts.html?highlight=derivingvia#extension-DerivingVia),
+and of the `JSONSum` and `JSONRecord` adapter newtypes. The
+[Symbol](http://hackage.haskell.org/package/base-4.14.0.0/docs/GHC-TypeLits.html#t:Symbol)s
+that parameterize the newtypes are used in parse error messages.
 
 There are limitations on sum types though:
 

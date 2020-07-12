@@ -70,10 +70,10 @@ aliasListEnd :: AliasList a '[]
 aliasListEnd = Null
 
 -- This typeclass converts the list-representation of aliases to the tree of
--- aliases that matches the generic Rep's shape.  
+-- aliases that matches the generic Rep's shape.
 --
 -- Also, quite importantly, it ensures that the field names in the list match
--- the field names in the Rep. 
+-- the field names in the Rep.
 type AliasTree :: [Symbol] -> (Type -> Type) -> [Symbol] -> Constraint
 -- Note that we could add the functional dependency "rep after -> before", but
 -- we don't want that because it would allow us to omit the field name
@@ -101,7 +101,7 @@ instance (AliasTree before left middle, AliasTree middle right end) => AliasTree
      in (BranchTree left right, end)
 
 --
-toAliases :: forall before a tree . AliasTree before tree '[] => AliasList a before -> Aliases a tree
+toAliases :: forall before a tree. AliasTree before tree '[] => AliasList a before -> Aliases a tree
 toAliases names =
   let (aliases, Null) = parseAliasTree @before @tree names
    in aliases
@@ -110,7 +110,7 @@ fieldAliases :: forall before a tree x y. (AliasTree before tree '[]) => AliasLi
 fieldAliases = Record . toAliases @before @a @tree
 
 branchAliases :: forall before a left right x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
-branchAliases = Sum . toAliases @before  @a @(left :+: right)
+branchAliases = Sum . toAliases @before @a @(left :+: right)
 
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
@@ -119,4 +119,3 @@ class (Rubric k, Generic r) => Aliased k r where
 type Rubric :: k -> Constraint
 class Rubric k where
   type ForRubric k :: Type
-
