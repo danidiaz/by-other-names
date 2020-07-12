@@ -29,7 +29,7 @@ This is a Cabal package with multiple public libraries.
 
   ```
   build-depends:
-    by-other-names >= 1.0.0.0
+    by-other-names ^>= 1.0.0.0
   ```
 
 - **by-other-names::aeson-adapter** 
@@ -39,14 +39,13 @@ This is a Cabal package with multiple public libraries.
 
   ```
   build-depends:
-    by-other-names:aeson-adapter >= 1.0.0.0
+    by-other-names:aeson-adapter  ^>= 1.0.0.0
   ```
 
 ## How to use by-other-names:aeson-adapter?
 
 Here are two example, one for a record and another for a sum type:
 
-    ```
     {-# LANGUAGE DataKinds #-}
     {-# LANGUAGE DeriveGeneric #-}
     {-# LANGUAGE DerivingVia #-}
@@ -88,7 +87,6 @@ Here are two example, one for a record and another for a sum type:
           $ alias (Proxy @"Bb") "Bbx"
           $ alias (Proxy @"Cc") "Ccx"
           $ aliasListEnd
-    ```
 
 Notice the use of
 [`-XDerivingVia`](https://downloads.haskell.org/ghc/latest/docs/html/users_guide/glasgow_exts.html?highlight=derivingvia#extension-DerivingVia)
