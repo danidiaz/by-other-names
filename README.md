@@ -31,7 +31,7 @@ This is a Cabal package with multiple public libraries.
 
   ```
   build-depends:
-    by-other-names ^>= 1.0.0.0
+    by-other-names ^>= 1.0.1.0
   ```
 
 - **by-other-names::aeson-adapter** 
@@ -41,7 +41,7 @@ This is a Cabal package with multiple public libraries.
 
   ```
   build-depends:
-    by-other-names:aeson-adapter  ^>= 1.0.0.0
+    by-other-names:aeson-adapter  ^>= 1.0.1.0
   ```
 
 ## How to use by-other-names:aeson-adapter?
@@ -64,10 +64,9 @@ Here are two example, one for a record and another for a sum type:
         Proxy(Proxy),
         Aliased,
         alias,
+        aliasListBegin,
         aliasListEnd,
-        aliases,
-        fieldAliases,
-        branchAliases
+        aliases
       )
     import Data.Aeson
     import Data.Aeson.Types
@@ -80,7 +79,7 @@ Here are two example, one for a record and another for a sum type:
 
     instance Aliased JSON Foo where
       aliases =
-        fieldAliases
+        aliasListBegin
           $ alias (Proxy @"aa") "aax"
           $ alias (Proxy @"bb") "bbx"
           $ alias (Proxy @"cc") "ccx"
@@ -95,7 +94,7 @@ Here are two example, one for a record and another for a sum type:
 
     instance Aliased JSON Summy where
       aliases =
-        branchAliases
+        aliasListBegin
           $ alias (Proxy @"Aa") "Aax"
           $ alias (Proxy @"Bb") "Bbx"
           $ alias (Proxy @"Cc") "Ccx"

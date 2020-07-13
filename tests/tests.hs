@@ -11,16 +11,14 @@ module Main where
 
 import ByOtherNames.Aeson
   ( Aliased,
-    JSONRecord(..),
+    JSONRecord (..),
     JSONRubric (JSON),
-    JSONSum(..),
-    Proxy(Proxy),
-    aliasListBegin,
+    JSONSum (..),
+    Proxy (Proxy),
     alias,
+    aliasListBegin,
     aliasListEnd,
     aliases,
-    fieldAliases,
-    branchAliases
   )
 import Data.Aeson
 import Data.Aeson.Types
@@ -75,7 +73,7 @@ data SingleField = SingleField {single :: Int}
 
 instance Aliased JSON SingleField where
   aliases =
-    fieldAliases
+    aliasListBegin
       $ alias (Proxy @"single") "Aa"
       $ aliasListEnd
 

@@ -28,8 +28,6 @@
 module ByOtherNames
   ( Aliases (..),
     AliasList,
-    fieldAliases,
-    branchAliases,
     aliasListBegin,
     alias,
     aliasListEnd,
@@ -37,6 +35,10 @@ module ByOtherNames
     module Data.Proxy,
     Symbol,
     Rubric (..),
+
+    -- * Deprecated
+    fieldAliases,
+    branchAliases,
   )
 where
 
@@ -81,8 +83,11 @@ data AliasList a names where
 alias :: Proxy name -> a -> AliasList a names -> AliasList a (name : names)
 alias = Cons
 
+-- | Define the aliases for a type by listing them. 
+--
+-- See also 'alias' and 'aliasListEnd'.
 aliasListBegin :: forall before a tree. (AliasTree before tree '[]) => AliasList a before -> Aliases a tree
-aliasListBegin names = 
+aliasListBegin names =
   let (aliases, Null) = parseAliasTree @before @tree names
    in aliases
 
@@ -101,13 +106,13 @@ type family AssertNamesAreEqual given expected where
 
 type MissingAlias :: Symbol -> Constraint
 type family MissingAlias expected where
-  MissingAlias expected = 
+  MissingAlias expected =
     TypeError
-      ( Text "No alias given for field or constructor name \"" :<>: Text expected :<>: Text "\".")
+      (Text "No alias given for field or constructor name \"" :<>: Text expected :<>: Text "\".")
 
 -- type ExcessAliasError :: Symbol -> Constraint
 -- type family ExcessAliasError name where
---   ExcessAliasError name = 
+--   ExcessAliasError name =
 --     TypeError
 --       ( Text "Alias given for nonexistent field or constructor \"" :<>: Text name :<>: Text "\".")
 
@@ -127,7 +132,7 @@ class AliasTree before rep after | before rep -> after where
 instance AssertNamesAreEqual name name' => AliasTree (name : names) (S1 ('MetaSel (Just name') x y z) v) names where
   parseAliasTree (Cons _ a rest) = (Field a, rest)
 
-instance MissingAlias name' => AliasTree '[] (S1 ('MetaSel (Just name') x y z) v) '[] where
+instance MissingAlias name' => AliasTree '[] (S1 ('MetaSel (Just name') x y z) v) '[]
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :*: right) end where
   parseAliasTree as =
@@ -136,18 +141,18 @@ instance (AliasTree before left middle, AliasTree middle right end) => AliasTree
      in (FieldTree left right, end)
 
 instance AliasTree before tree '[] => AliasTree before (D1 x (C1 y tree)) '[] where
-  parseAliasTree as = 
-    let (aliases',as') = parseAliasTree as
+  parseAliasTree as =
+    let (aliases', as') = parseAliasTree as
      in (Record aliases', as')
 
--- doesn't work because of the functional dependency :( 
+-- doesn't work because of the functional dependency :(
 -- instance ExcessAliasError name => AliasTree before (D1 x (C1 y tree)) (name : names) where
 
 --
 instance AssertNamesAreEqual name name' => AliasTree (name : names) (C1 ('MetaCons name' fixity False) slots) names where
   parseAliasTree (Cons _ a rest) = (Branch a, rest)
 
-instance MissingAlias name' => AliasTree '[] (C1 ('MetaCons name' fixity False) slots) '[] where
+instance MissingAlias name' => AliasTree '[] (C1 ('MetaCons name' fixity False) slots) '[]
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :+: right) end where
   parseAliasTree as =
@@ -156,11 +161,11 @@ instance (AliasTree before left middle, AliasTree middle right end) => AliasTree
      in (BranchTree left right, end)
 
 instance AliasTree before (left :+: right) '[] => AliasTree before (D1 x (left :+: right)) '[] where
-  parseAliasTree as = 
-    let (aliases',as') = parseAliasTree as
+  parseAliasTree as =
+    let (aliases', as') = parseAliasTree as
      in (Sum aliases', as')
 
--- doesn't work because of the functional dependency :( 
+-- doesn't work because of the functional dependency :(
 -- instance ExcessAliasError name => AliasTree before (D1 x (left :+: right)) (name : names) where
 
 -- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
@@ -183,13 +188,11 @@ toAliases names =
   let (aliases, Null) = parseAliasTree @before @tree names
    in aliases
 
--- | Define 'Aliases' for a record type.
+{-# DEPRECATED fieldAliases "Use aliasListBegin instead" #-}
 fieldAliases :: forall before a tree x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
 fieldAliases = Record . toAliases @before @a @tree
 
--- | Define 'Aliases' for a sum type.
---
--- The sum type can only have zero or one attributes, and they can't have selectors.
+{-# DEPRECATED branchAliases "Use aliasListBegin instead" #-}
 branchAliases :: forall before a left right x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
 branchAliases = Sum . toAliases @before @a @(left :+: right)
 

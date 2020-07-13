@@ -20,9 +20,9 @@
 -- Required extensions:
 --
 -- - DataKinds
--- - DeriveGeneric 
--- - DerivingVia 
--- - FlexibleInstances 
+-- - DeriveGeneric
+-- - DerivingVia
+-- - FlexibleInstances
 -- - MultiParamTypeClasses
 -- - OverloadedStrings
 -- - TypeApplications
@@ -32,17 +32,16 @@
 --
 -- @
 -- import ByOtherNames.Aeson
---   ( 
+--   (
 --     JSONRubric (JSON),
 --     JSONRecord(..),
 --     JSONSum(..),
 --     Proxy(Proxy),
 --     Aliased,
 --     alias,
+--     aliasListBegin
 --     aliasListEnd,
---     aliases,
---     fieldAliases,
---     branchAliases
+--     aliases
 --   )
 -- import Data.Aeson
 -- import Data.Aeson.Types
@@ -55,7 +54,7 @@
 --
 -- instance Aliased JSON Foo where
 --   aliases =
---     fieldAliases
+--     aliasListBegin
 --       $ alias (Proxy @"aa") "aax"
 --       $ alias (Proxy @"bb") "bbx"
 --       $ alias (Proxy @"cc") "ccx"
@@ -70,18 +69,18 @@
 --
 -- instance Aliased JSON Summy where
 --   aliases =
---     branchAliases
+--     aliasListBegin
 --       $ alias (Proxy @"Aa") "Aax"
 --       $ alias (Proxy @"Bb") "Bbx"
 --       $ alias (Proxy @"Cc") "Ccx"
 --       $ aliasListEnd
--- @         
-
+-- @
 module ByOtherNames.Aeson
   ( -- * JSON helpers
     JSONRubric (..),
     JSONRecord (..),
     JSONSum (..),
+
     -- * Re-exports from ByOtherNames
     Aliased (aliases),
     fieldAliases,
@@ -89,9 +88,11 @@ module ByOtherNames.Aeson
     aliasListBegin,
     alias,
     aliasListEnd,
+
     -- * Re-exports from Data.Aeson
     FromJSON,
     ToJSON,
+
     -- * Re-exports from Data.Proxy
     Proxy (..),
   )
@@ -108,7 +109,7 @@ import GHC.Generics
 import GHC.TypeLits
 
 -- | Aliases for JSON serialization fall under this 'Rubric'.
--- The constructor 'JSON' is used as a type, with DataKinds. 
+-- The constructor 'JSON' is used as a type, with DataKinds.
 data JSONRubric = JSON
 
 -- | The aliases will be of type 'Data.Text'.
@@ -232,4 +233,3 @@ instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+
     let Sum branches = aliases @JSONRubric @JSON @r
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
-
