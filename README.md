@@ -34,7 +34,7 @@ This is a Cabal package with multiple public libraries.
     by-other-names ^>= 1.0.1.0
   ```
 
-- **by-other-names::aeson-adapter** 
+- **by-other-names:aeson-adapter** 
 
   Helpers for defining aeson's FromJSON and ToJSON instances with aliases field
   names.

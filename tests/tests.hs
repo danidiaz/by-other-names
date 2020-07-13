@@ -6,9 +6,11 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
+import ByOtherNames.TH
 import ByOtherNames.Aeson
   ( Aliased,
     JSONRecord (..),
@@ -40,6 +42,14 @@ instance Aliased JSON Foo where
       $ alias (Proxy @"dd") "ddx"
       $ alias (Proxy @"ee") "eex"
       $ aliasListEnd
+
+
+data FooTH = FooTH {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
+  deriving (Read, Show, Eq, Generic)
+  deriving (FromJSON, ToJSON) via (JSONRecord "obj" FooTH)
+
+instance Aliased JSON FooTH where
+  aliases = [aliasList| |]
 
 data Summy
   = Aa Int

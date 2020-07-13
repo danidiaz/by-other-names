@@ -37,6 +37,17 @@ library aeson-adapter
   visibility:          public
   default-language:    Haskell2010
 
+library th
+  exposed-modules:     ByOtherNames.TH
+  build-depends:       base                 >= 4.10.0.0,
+                       template-haskell     ^>= 2.16.0.0,
+                       by-other-names
+  hs-source-dirs:      lib-th
+  -- https://downloads.haskell.org/ghc/latest/docs/html/users_guide/using-warnings.html
+  ghc-options: -W
+  visibility:          public
+  default-language:    Haskell2010
+
 test-suite tests
   type:                exitcode-stdio-1.0
   hs-source-dirs:      tests
@@ -47,5 +58,6 @@ test-suite tests
                        tasty-hunit          >= 0.9.2,
                        aeson                >= 1.5.2.0,
                        by-other-names,
+                       by-other-names:th,
                        aeson-adapter,
   default-language:    Haskell2010
