@@ -99,17 +99,17 @@ type family AssertNamesAreEqual given expected where
           :$$: Text "but instead found name \"" :<>: Text given :<>: Text "\"."
       )
 
-type MissingAlias :: Symbol -> Constraint
-type family MissingAlias expected where
-  MissingAlias expected = 
+type NoAliasGivenError :: Symbol -> Constraint
+type family NoAliasGivenError expected where
+  NoAliasGivenError expected = 
     TypeError
       ( Text "No alias given for field or constructor name \"" :<>: Text expected :<>: Text "\".")
 
--- type ExcessAliasError :: Symbol -> Constraint
--- type family ExcessAliasError name where
---   ExcessAliasError name = 
---     TypeError
---       ( Text "Alias given for nonexistent field or constructor \"" :<>: Text name :<>: Text "\".")
+type NonExistentError :: Symbol -> Constraint
+type family NonExistentError name where
+  NonExistentFieldError name = 
+    TypeError
+      ( Text "Alias given for nonexistent field or constructor \"" :<>: Text name :<>: Text "\".")
 
 -- | This typeclass converts the list-representation of aliases `AliasList` to
 -- the tree of aliases 'Aliases' that matches the generic Rep's shape.
@@ -127,7 +127,7 @@ class AliasTree before rep after | before rep -> after where
 instance AssertNamesAreEqual name name' => AliasTree (name : names) (S1 ('MetaSel (Just name') x y z) v) names where
   parseAliasTree (Cons _ a rest) = (Field a, rest)
 
-instance MissingAlias name' => AliasTree '[] (S1 ('MetaSel (Just name') x y z) v) '[] where
+instance NoAliasGivenError name' => AliasTree '[] (S1 ('MetaSel (Just name') x y z) v) '[] where
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :*: right) end where
   parseAliasTree as =
@@ -140,14 +140,13 @@ instance AliasTree before tree '[] => AliasTree before (D1 x (C1 y tree)) '[] wh
     let (aliases',as') = parseAliasTree as
      in (Record aliases', as')
 
--- doesn't work because of the functional dependency :( 
--- instance ExcessAliasError name => AliasTree before (D1 x (C1 y tree)) (name : names) where
+instance AliasTree before tree '[] => AliasTree before (D1 x (C1 y tree)) (name : names) where
 
 --
 instance AssertNamesAreEqual name name' => AliasTree (name : names) (C1 ('MetaCons name' fixity False) slots) names where
   parseAliasTree (Cons _ a rest) = (Branch a, rest)
 
-instance MissingAlias name' => AliasTree '[] (C1 ('MetaCons name' fixity False) slots) '[] where
+instance NoAliasGivenError name' => AliasTree '[] (C1 ('MetaCons name' fixity False) slots) '[] where
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :+: right) end where
   parseAliasTree as =
@@ -159,9 +158,6 @@ instance AliasTree before (left :+: right) '[] => AliasTree before (D1 x (left :
   parseAliasTree as = 
     let (aliases',as') = parseAliasTree as
      in (Sum aliases', as')
-
--- doesn't work because of the functional dependency :( 
--- instance ExcessAliasError name => AliasTree before (D1 x (left :+: right)) (name : names) where
 
 -- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
 type Aliased :: k -> Type -> Constraint
