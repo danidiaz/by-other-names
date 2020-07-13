@@ -30,6 +30,7 @@ module ByOtherNames
     AliasList,
     fieldAliases,
     branchAliases,
+    aliasListBegin,
     alias,
     aliasListEnd,
     Aliased (aliases),
@@ -89,18 +90,18 @@ aliasListBegin names =
 aliasListEnd :: AliasList a '[]
 aliasListEnd = Null
 
-type NamesShouldBeEqual :: Symbol -> Symbol -> Constraint
-type family NamesShouldBeEqual given expected where
-  NamesShouldBeEqual expected expected = ()
-  NamesShouldBeEqual given expected =
+type AssertNamesAreEqual :: Symbol -> Symbol -> Constraint
+type family AssertNamesAreEqual given expected where
+  AssertNamesAreEqual expected expected = ()
+  AssertNamesAreEqual given expected =
     TypeError
       ( Text "Expected field or branch name \"" :<>: Text expected :<>: Text "\","
           :$$: Text "but instead found name \"" :<>: Text given :<>: Text "\"."
       )
 
-type NoAliasGiven :: Symbol -> Constraint
-type family NoAliasGiven expected where
-  NoAliasGiven expected = 
+type NoAliasGivenError :: Symbol -> Constraint
+type family NoAliasGivenError expected where
+  NoAliasGivenError expected = 
     TypeError
       ( Text "No alias given for field or branch name \"" :<>: Text expected :<>: Text "\".")
 
@@ -117,10 +118,10 @@ class AliasTree before rep after | before rep -> after where
   parseAliasTree :: AliasList a before -> (Aliases a rep, AliasList a after)
 
 --
-instance NamesShouldBeEqual name name' => AliasTree (name : names) (S1 ('MetaSel (Just name') x y z) v) names where
+instance AssertNamesAreEqual name name' => AliasTree (name : names) (S1 ('MetaSel (Just name') x y z) v) names where
   parseAliasTree (Cons _ a rest) = (Field a, rest)
 
-instance NoAliasGiven name' => AliasTree '[] (S1 ('MetaSel (Just name') x y z) v) '[] where
+instance NoAliasGivenError name' => AliasTree '[] (S1 ('MetaSel (Just name') x y z) v) '[] where
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :*: right) end where
   parseAliasTree as =
@@ -134,10 +135,10 @@ instance AliasTree before tree '[] => AliasTree before (D1 x (C1 y tree)) '[] wh
      in (Record aliases', as')
 
 --
-instance NamesShouldBeEqual name name' => AliasTree (name : names) (C1 ('MetaCons name' fixity False) slots) names where
+instance AssertNamesAreEqual name name' => AliasTree (name : names) (C1 ('MetaCons name' fixity False) slots) names where
   parseAliasTree (Cons _ a rest) = (Branch a, rest)
 
-instance NoAliasGiven name' => AliasTree '[] (C1 ('MetaCons name' fixity False) slots) '[] where
+instance NoAliasGivenError name' => AliasTree '[] (C1 ('MetaCons name' fixity False) slots) '[] where
 
 instance (AliasTree before left middle, AliasTree middle right end) => AliasTree before (left :+: right) end where
   parseAliasTree as =

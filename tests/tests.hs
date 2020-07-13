@@ -15,6 +15,7 @@ import ByOtherNames.Aeson
     JSONRubric (JSON),
     JSONSum(..),
     Proxy(Proxy),
+    aliasListBegin,
     alias,
     aliasListEnd,
     aliases,
@@ -34,7 +35,7 @@ data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
 
 instance Aliased JSON Foo where
   aliases =
-    fieldAliases
+    aliasListBegin
       $ alias (Proxy @"aa") "aax"
       $ alias (Proxy @"bb") "bbx"
       $ alias (Proxy @"cc") "ccx"
@@ -53,7 +54,7 @@ data Summy
 
 instance Aliased JSON Summy where
   aliases =
-    branchAliases
+    aliasListBegin
       $ alias (Proxy @"Aa") "Aax"
       $ alias (Proxy @"Bb") "Bbx"
       $ alias (Proxy @"Cc") "Ccx"

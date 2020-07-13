@@ -86,6 +86,7 @@ module ByOtherNames.Aeson
     Aliased (aliases),
     fieldAliases,
     branchAliases,
+    aliasListBegin,
     alias,
     aliasListEnd,
     -- * Re-exports from Data.Aeson
