@@ -80,6 +80,11 @@ data AliasList a names where
 alias :: Proxy name -> a -> AliasList a names -> AliasList a (name : names)
 alias = Cons
 
+aliasListBegin :: forall before a tree. (AliasTree before tree '[]) => AliasList a before -> Aliases a tree
+aliasListBegin names = 
+  let (aliases, Null) = parseAliasTree @before @tree names
+   in aliases
+
 -- | The empty `AliasList`.
 aliasListEnd :: AliasList a '[]
 aliasListEnd = Null
@@ -99,9 +104,6 @@ type family NoAliasGiven expected where
     TypeError
       ( Text "No alias given for field or branch name \"" :<>: Text expected :<>: Text "\".")
 
-
-
-
 -- | This typeclass converts the list-representation of aliases `AliasList` to
 -- the tree of aliases 'Aliases' that matches the generic Rep's shape.
 --
@@ -114,6 +116,7 @@ type AliasTree :: [Symbol] -> (Type -> Type) -> [Symbol] -> Constraint
 class AliasTree before rep after | before rep -> after where
   parseAliasTree :: AliasList a before -> (Aliases a rep, AliasList a after)
 
+--
 instance NamesShouldBeEqual name name' => AliasTree (name : names) (S1 ('MetaSel (Just name') x y z) v) names where
   parseAliasTree (Cons _ a rest) = (Field a, rest)
 
@@ -124,6 +127,11 @@ instance (AliasTree before left middle, AliasTree middle right end) => AliasTree
     let (left, middle) = parseAliasTree @before as
         (right, end) = parseAliasTree @middle middle
      in (FieldTree left right, end)
+
+instance AliasTree before tree '[] => AliasTree before (D1 x (C1 y tree)) '[] where
+  parseAliasTree as = 
+    let (aliases',as') = parseAliasTree as
+     in (Record aliases', as')
 
 --
 instance NamesShouldBeEqual name name' => AliasTree (name : names) (C1 ('MetaCons name' fixity False) slots) names where
@@ -137,6 +145,25 @@ instance (AliasTree before left middle, AliasTree middle right end) => AliasTree
         (right, end) = parseAliasTree @middle middle
      in (BranchTree left right, end)
 
+instance AliasTree before (left :+: right) '[] => AliasTree before (D1 x (left :+: right)) '[] where
+  parseAliasTree as = 
+    let (aliases',as') = parseAliasTree as
+     in (Sum aliases', as')
+
+-- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
+type Aliased :: k -> Type -> Constraint
+class (Rubric k, Generic r) => Aliased k r where
+  aliases :: Aliases (ForRubric k) (Rep r)
+
+-- | Typeclass for marker datakinds used as rubrics, to classify aliases.
+--
+-- The associated type family `ForRubric` gives the type of the aliases.
+type Rubric :: k -> Constraint
+class Rubric k where
+  type ForRubric k :: Type
+
+--
+-- deprecated
 --
 toAliases :: forall before a tree. AliasTree before tree '[] => AliasList a before -> Aliases a tree
 toAliases names =
@@ -153,14 +180,3 @@ fieldAliases = Record . toAliases @before @a @tree
 branchAliases :: forall before a left right x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
 branchAliases = Sum . toAliases @before @a @(left :+: right)
 
--- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
-type Aliased :: k -> Type -> Constraint
-class (Rubric k, Generic r) => Aliased k r where
-  aliases :: Aliases (ForRubric k) (Rep r)
-
--- | Typeclass for marker datakinds used as rubrics, to classify aliases.
---
--- The associated type family `ForRubric` gives the type of the aliases.
-type Rubric :: k -> Constraint
-class Rubric k where
-  type ForRubric k :: Type
