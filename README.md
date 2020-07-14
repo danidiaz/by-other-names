@@ -143,3 +143,5 @@ quasiquoter:
         xe = "eex",
       |]
 
+The trailing comma is optional.
+
