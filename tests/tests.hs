@@ -49,7 +49,13 @@ data FooTH = FooTH {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
   deriving (FromJSON, ToJSON) via (JSONRecord "obj" FooTH)
 
 instance Aliased JSON FooTH where
-  aliases = [aliasList| |]
+  aliases = [aliasList| 
+    xa = "aax",
+    xb = "bbx",
+    xc = "ccx",
+    xd = "ddx",
+    xe = "eex",
+  |]
 
 data Summy
   = Aa Int
