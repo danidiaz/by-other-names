@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                by-other-names
-version:             1.0.1.0
+version:             1.0.2.0
 synopsis:            Give aliases to record fields.
 
 description:         Give aliases to record fields.
@@ -40,7 +40,7 @@ library aeson-adapter
 library th
   exposed-modules:     ByOtherNames.TH
   build-depends:       base                 >= 4.10.0.0,
-                       template-haskell     ^>= 2.16.0.0,
+                       template-haskell     >= 2.16.0.0,
                        by-other-names
   hs-source-dirs:      lib-th
   -- https://downloads.haskell.org/ghc/latest/docs/html/users_guide/using-warnings.html

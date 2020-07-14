@@ -31,7 +31,7 @@ This is a Cabal package with multiple public libraries.
 
   ```
   build-depends:
-    by-other-names ^>= 1.0.1.0
+    by-other-names ^>= 1.0.2.0
   ```
 
 - **by-other-names:aeson-adapter** 
@@ -41,7 +41,16 @@ This is a Cabal package with multiple public libraries.
 
   ```
   build-depends:
-    by-other-names:aeson-adapter  ^>= 1.0.1.0
+    by-other-names:aeson-adapter  ^>= 1.0.2.0
+  ```
+
+- **by-other-names:th** 
+
+  Provides a quasiquoter with a simplified syntax for defining aliases.
+
+  ```
+  build-depends:
+    by-other-names:th  ^>= 1.0.2.0
   ```
 
 ## How to use by-other-names:aeson-adapter?
@@ -111,4 +120,26 @@ There are limitations on sum types though:
 - Each branch can have zero or one fields, and the field can't have a selector.
 
 - Only the "object with a single key consisting in the branch tag" style of serialization is supported.
+
+## How to use by-other-names:th?
+
+That library provides a module 'ByOtherNames.TH' which exports the 'aliasList'
+quasiquoter:
+
+    import ByOtherNames.TH
+
+    -- ...
+
+    data FooTH = FooTH {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
+      deriving (Read, Show, Eq, Generic)
+      deriving (FromJSON, ToJSON) via (JSONRecord "obj" FooTH)
+
+    instance Aliased JSON FooTH where
+      aliases = [aliasList| 
+        xa = "aax",
+        xb = "bbx",
+        xc = "ccx",
+        xd = "ddx",
+        xe = "eex",
+      |]
 

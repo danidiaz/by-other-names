@@ -3,3 +3,8 @@
 =======
 
 - deprecated fieldAliases and branchAliases in favor of aliasListBegin.
+
+1.0.2.0
+=======
+
+- added a quasiquoter in a new public library
