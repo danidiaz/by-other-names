@@ -8,3 +8,9 @@
 =======
 
 - added a quasiquoter in a new public library
+
+1.1.0.0
+=======
+
+- Renamed "ForRubric" associated type family to "AliasType".
+- Removed deprecated fieldAliases, branchAliases functions.

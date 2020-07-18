@@ -129,9 +129,9 @@ data JSONRubric = JSON
 
 -- | The aliases will be of type 'Data.Text'.
 instance Rubric JSON where
-  type ForRubric JSON = Text
+  type AliasType JSON = Text
 
-instance ParserRubric JSON where 
+instance ParsingRubric JSON where 
   type RequiredConstraint JSON = FromJSON
   type ParserType JSON = Data.Aeson.Types.Parser 
   parseField = undefined
@@ -152,7 +152,7 @@ newtype JSONRecord s r = JSONRecord r
 type JSONSum :: Symbol -> Type -> Type
 newtype JSONSum s r = JSONSum r
 
---
+-- FromJSON
 --
 newtype FieldParser a = FieldParser (Object -> Parser a)
   deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
@@ -174,33 +174,6 @@ instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsFromJSO
         FieldParser parser = fieldParser prod
      in JSONRecord . to . M1 . M1 <$> withObject (symbolVal (Proxy @s)) parser v
 
---
---
-newtype FieldConverter a = FieldConverter (a -> [(Text, Value)])
-  deriving newtype (Semigroup, Monoid)
-
-type FieldsToJSON :: (Type -> Type) -> Constraint
-class FieldsToJSON t where
-  fieldConverter :: Aliases Text t -> FieldConverter (t x)
-
-instance ToJSON v => FieldsToJSON (S1 x (Rec0 v)) where
-  fieldConverter (Field fieldName) = FieldConverter \(M1 (K1 v)) -> [(fieldName, toJSON v)]
-
-instance (FieldsToJSON left, FieldsToJSON right) => FieldsToJSON (left :*: right) where
-  fieldConverter (FieldTree left right) =
-    FieldConverter \(leftFields :*: rightFields) ->
-      let FieldConverter leftConverter = fieldConverter left
-          FieldConverter rightConverter = fieldConverter right
-       in leftConverter leftFields ++ rightConverter rightFields
-
-instance (Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsToJSON prod) => ToJSON (JSONRecord s r) where
-  toJSON (JSONRecord (from -> M1 (M1 a))) =
-    let Record prod = aliases @JSONRubric @JSON @r
-        FieldConverter fieldsToValues = fieldConverter prod
-     in object (fieldsToValues a)
-
---
---
 type BranchesFromJSON :: (Type -> Type) -> Constraint
 class BranchesFromJSON t where
   branchParser :: Aliases Text t -> Object -> Parser (t x)
@@ -226,8 +199,31 @@ instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (left :+: right), Branches
     let Sum branches = aliases @JSONRubric @JSON @r
      in JSONSum . to . M1 <$> withObject (symbolVal (Proxy @s)) (branchParser branches) v
 
+-- ToJSON
 --
---
+newtype FieldConverter a = FieldConverter (a -> [(Text, Value)])
+  deriving newtype (Semigroup, Monoid)
+
+type FieldsToJSON :: (Type -> Type) -> Constraint
+class FieldsToJSON t where
+  fieldConverter :: Aliases Text t -> FieldConverter (t x)
+
+instance ToJSON v => FieldsToJSON (S1 x (Rec0 v)) where
+  fieldConverter (Field fieldName) = FieldConverter \(M1 (K1 v)) -> [(fieldName, toJSON v)]
+
+instance (FieldsToJSON left, FieldsToJSON right) => FieldsToJSON (left :*: right) where
+  fieldConverter (FieldTree left right) =
+    FieldConverter \(leftFields :*: rightFields) ->
+      let FieldConverter leftConverter = fieldConverter left
+          FieldConverter rightConverter = fieldConverter right
+       in leftConverter leftFields ++ rightConverter rightFields
+
+instance (Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsToJSON prod) => ToJSON (JSONRecord s r) where
+  toJSON (JSONRecord (from -> M1 (M1 a))) =
+    let Record prod = aliases @JSONRubric @JSON @r
+        FieldConverter fieldsToValues = fieldConverter prod
+     in object (fieldsToValues a)
+
 newtype BranchConverter a = BranchConverter (a -> Value)
 
 type BranchesToJSON :: (Type -> Type) -> Constraint
@@ -255,3 +251,4 @@ instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+
     let Sum branches = aliases @JSONRubric @JSON @r
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
+

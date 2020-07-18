@@ -35,7 +35,7 @@ module ByOtherNames
     module Data.Proxy,
     Symbol,
     Rubric (..),
-    ParserRubric (..),
+    ParsingRubric (..),
 
     -- * Deprecated
     fieldAliases,
@@ -173,63 +173,46 @@ instance AliasTree before (left :+: right) '[] => AliasTree before (D1 x (left :
 -- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
-  aliases :: Aliases (ForRubric k) (Rep r)
+  aliases :: Aliases (AliasType k) (Rep r)
 
 -- | Typeclass for marker datakinds used as rubrics, to classify aliases.
 --
--- The associated type family `ForRubric` gives the type of the aliases.
+-- The associated type family `AliasType` gives the type of the aliases.
 type Rubric :: k -> Constraint
 class Rubric k where
-  -- TO DO: rename to AliasType, or Alias
-  type ForRubric k :: Type
+  type AliasType k :: Type
 
 -- 
 -- extra struff for parsing
-type ParserRubric :: k -> Constraint
-class Rubric k => ParserRubric k where
+type ParsingRubric :: k -> Constraint
+class Rubric k => ParsingRubric k where
     type RequiredConstraint k :: Type -> Constraint  
     type ParserType k :: Type -> Type
-    parseField :: RequiredConstraint k v => ForRubric k -> ParserType k v
-    parseBranch :: RequiredConstraint k v => ForRubric k -> ParserType k v
-    parseBranch0 :: ForRubric k -> ParserType k ()
+    parseField :: RequiredConstraint k v => AliasType k -> ParserType k v
+    parseBranch :: RequiredConstraint k v => AliasType k -> ParserType k v
+    parseBranch0 :: AliasType k -> ParserType k ()
 
 type ParseableWithRubric :: k -> (Type -> Type) -> Constraint
 class ParseableWithRubric k t where
-  parseWithRubric :: Proxy k -> Aliases (ForRubric k) t -> ParserType k (t x)
+  parseWithRubric :: Proxy k -> Aliases (AliasType k) t -> ParserType k (t x)
 
-instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (S1 x (Rec0 v)) where
+instance (ParsingRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (S1 x (Rec0 v)) where
   parseWithRubric (_ :: Proxy k) (Field fieldName) = M1 . K1 <$> parseField @_ @k fieldName
 
-instance (ParserRubric k, Applicative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :*: right) where
+instance (ParsingRubric k, Applicative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :*: right) where
   parseWithRubric _ (FieldTree left right) =
     (:*:) <$> parseWithRubric (Proxy @k) left <*> parseWithRubric (Proxy @k) right
 
-instance (ParserRubric k, Functor (ParserType k), ParseableWithRubric k prod) => ParseableWithRubric k (D1 x (C1 y prod)) where
+instance (ParsingRubric k, Functor (ParserType k), ParseableWithRubric k prod) => ParseableWithRubric k (D1 x (C1 y prod)) where
   parseWithRubric _ (Record prod) =
     M1 . M1 <$> parseWithRubric (Proxy @k) prod
 
-instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x (S1 y (Rec0 v))) where
+instance (ParsingRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x (S1 y (Rec0 v))) where
   parseWithRubric _ (Branch branchName) = M1 . M1 . K1 <$> parseBranch @_ @k branchName
 
-instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x U1) where
+instance (ParsingRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x U1) where
   parseWithRubric _ (Branch branchName) = M1 U1 <$ parseBranch0 @_ @k branchName
 
-instance (ParserRubric k, Alternative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :+: right) where
+instance (ParsingRubric k, Alternative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :+: right) where
   parseWithRubric _ (BranchTree left right) = (L1 <$> parseWithRubric (Proxy @k) left) <|> (R1 <$> parseWithRubric (Proxy @k) right)
-
---
--- deprecated
---
-toAliases :: forall before a tree. AliasTree before tree '[] => AliasList a before -> Aliases a tree
-toAliases names =
-  let (aliases, Null) = parseAliasTree @before @tree names
-   in aliases
-
-{-# DEPRECATED fieldAliases "Use aliasListBegin instead" #-}
-fieldAliases :: forall before a tree x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
-fieldAliases = Record . toAliases @before @a @tree
-
-{-# DEPRECATED branchAliases "Use aliasListBegin instead" #-}
-branchAliases :: forall before a left right x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
-branchAliases = Sum . toAliases @before @a @(left :+: right)
 
