@@ -108,6 +108,21 @@ import Data.Text
 import GHC.Generics
 import GHC.TypeLits
 
+
+-- type Parserlike :: (Type -> Type) -> Constraint
+-- class (Applicative f, Alternative f) => Parserlike f where 
+--     type RequiredAlias f :: Type
+--     type RequiredConstraint f :: Type -> Constraint  
+--     parseLeaf :: RequiredConstraint f a => RequiredAlias f -> f a
+
+-- instance Parserlike v => Parserlike (S1 x (Rec0 v)) where
+--   fieldParser (Field fieldName) = FieldParser \o -> M1 . K1 <$> explicitParseField parseJSON o fieldName
+
+-- instance (FieldsFromJSON left, FieldsFromJSON right) => FieldsFromJSON (left :*: right) where
+--   fieldParser (FieldTree left right) =
+--     (:*:) <$> fieldParser left <*> fieldParser right
+
+
 -- | Aliases for JSON serialization fall under this 'Rubric'.
 -- The constructor 'JSON' is used as a type, with DataKinds.
 data JSONRubric = JSON
@@ -115,6 +130,11 @@ data JSONRubric = JSON
 -- | The aliases will be of type 'Data.Text'.
 instance Rubric JSON where
   type ForRubric JSON = Text
+
+instance ParserRubric JSON where 
+  type RequiredConstraint JSON = FromJSON
+  type ParserType JSON = Data.Aeson.Types.Parser 
+  parseLeaf = undefined
 
 -- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for record types,
 -- using DerivingVia.

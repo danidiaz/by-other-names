@@ -35,6 +35,7 @@ module ByOtherNames
     module Data.Proxy,
     Symbol,
     Rubric (..),
+    ParserRubric (..),
 
     -- * Deprecated
     fieldAliases,
@@ -178,7 +179,35 @@ class (Rubric k, Generic r) => Aliased k r where
 -- The associated type family `ForRubric` gives the type of the aliases.
 type Rubric :: k -> Constraint
 class Rubric k where
+  -- TO DO: rename to AliasType, or Alias
   type ForRubric k :: Type
+
+-- 
+-- extra struff for parsing
+type ParserRubric :: k -> Constraint
+class Rubric k => ParserRubric k where
+    type RequiredConstraint k :: Type -> Constraint  
+    type ParserType k :: Type -> Type
+    parseLeaf :: RequiredConstraint k v => ForRubric k -> ParserType k v
+
+type ParseableWithRubric :: k -> (Type -> Type) -> Constraint
+class ParseableWithRubric k t where
+  parseWithRubric :: Proxy k -> Aliases (ForRubric k) t -> ParserType k (t x)
+
+instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (S1 x (Rec0 v)) where
+  parseWithRubric (_ :: Proxy k) (Field fieldName) = M1 . K1 <$> parseLeaf @_ @k fieldName
+
+instance (ParserRubric k, Applicative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :*: right) where
+  parseWithRubric _ (FieldTree left right) =
+    (:*:) <$> parseWithRubric (Proxy @k) left <*> parseWithRubric (Proxy @k) right
+
+instance (ParserRubric k, Functor (ParserType k), ParseableWithRubric k prod) => ParseableWithRubric k (D1 x (C1 y prod)) where
+  parseWithRubric _ (Record prod) =
+    M1 . M1 <$> parseWithRubric (Proxy @k) prod
+
+-- instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x (S1 y (Rec0 v))) where
+--   parseWithRubric _ (Branch branchName) = M1 . M1 . K1 <$> parseLeaf @_ @k branchName
+
 
 --
 -- deprecated
