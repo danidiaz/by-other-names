@@ -35,10 +35,6 @@ module ByOtherNames
     module Data.Proxy,
     Symbol,
     Rubric (..),
-
-    -- * Deprecated
-    fieldAliases,
-    branchAliases,
   )
 where
 
@@ -171,28 +167,12 @@ instance AliasTree before (left :+: right) '[] => AliasTree before (D1 x (left :
 -- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
-  aliases :: Aliases (ForRubric k) (Rep r)
+  aliases :: Aliases (AliasType k) (Rep r)
 
 -- | Typeclass for marker datakinds used as rubrics, to classify aliases.
 --
 -- The associated type family `ForRubric` gives the type of the aliases.
 type Rubric :: k -> Constraint
 class Rubric k where
-  type ForRubric k :: Type
-
---
--- deprecated
---
-toAliases :: forall before a tree. AliasTree before tree '[] => AliasList a before -> Aliases a tree
-toAliases names =
-  let (aliases, Null) = parseAliasTree @before @tree names
-   in aliases
-
-{-# DEPRECATED fieldAliases "Use aliasListBegin instead" #-}
-fieldAliases :: forall before a tree x y. (AliasTree before tree '[]) => AliasList a before -> Aliases a (D1 x (C1 y tree))
-fieldAliases = Record . toAliases @before @a @tree
-
-{-# DEPRECATED branchAliases "Use aliasListBegin instead" #-}
-branchAliases :: forall before a left right x. (AliasTree before (left :+: right) '[]) => AliasList a before -> Aliases a (D1 x (left :+: right))
-branchAliases = Sum . toAliases @before @a @(left :+: right)
+  type AliasType k :: Type
 

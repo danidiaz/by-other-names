@@ -83,8 +83,6 @@ module ByOtherNames.Aeson
 
     -- * Re-exports from ByOtherNames
     Aliased (aliases),
-    fieldAliases,
-    branchAliases,
     aliasListBegin,
     alias,
     aliasListEnd,
@@ -114,7 +112,7 @@ data JSONRubric = JSON
 
 -- | The aliases will be of type 'Data.Text'.
 instance Rubric JSON where
-  type ForRubric JSON = Text
+  type AliasType JSON = Text
 
 -- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for record types,
 -- using DerivingVia.
