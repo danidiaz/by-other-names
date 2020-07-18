@@ -36,10 +36,6 @@ module ByOtherNames
     Symbol,
     Rubric (..),
     ParsingRubric (..),
-
-    -- * Deprecated
-    fieldAliases,
-    branchAliases,
   )
 where
 

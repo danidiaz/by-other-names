@@ -83,8 +83,6 @@ module ByOtherNames.Aeson
 
     -- * Re-exports from ByOtherNames
     Aliased (aliases),
-    fieldAliases,
-    branchAliases,
     aliasListBegin,
     alias,
     aliasListEnd,
@@ -131,73 +129,72 @@ data JSONRubric = JSON
 instance Rubric JSON where
   type AliasType JSON = Text
 
-instance ParsingRubric JSON where 
-  type RequiredConstraint JSON = FromJSON
-  type ParserType JSON = Data.Aeson.Types.Parser 
-  parseField = undefined
-  parseBranch = undefined
-  parseBranch0 = undefined
-
--- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for record types,
--- using DerivingVia.
---
--- The 'Symbol' type parameter is used in parse error messages.
-type JSONRecord :: Symbol -> Type -> Type
-newtype JSONRecord s r = JSONRecord r
-
--- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for sum types,
--- using DerivingVia.
---
--- The 'Symbol' type parameter is used in parse error messages.
-type JSONSum :: Symbol -> Type -> Type
-newtype JSONSum s r = JSONSum r
 
 -- FromJSON
 --
-newtype FieldParser a = FieldParser (Object -> Parser a)
+-- general machinery
+type ParsingRubric :: k -> Constraint
+class Rubric k => ParsingRubric k where
+    type RequiredConstraint k :: Type -> Constraint  
+    type ParserType k :: Type -> Type
+    parseField :: RequiredConstraint k v => AliasType k -> ParserType k v
+    parseBranch :: RequiredConstraint k v => AliasType k -> ParserType k v
+    parseBranch0 :: AliasType k -> ParserType k ()
+
+type ParseableWithRubric :: k -> (Type -> Type) -> Constraint
+class ParseableWithRubric k t where
+  parseWithRubric :: Proxy k -> Aliases (AliasType k) t -> ParserType k (t x)
+
+instance (ParsingRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (S1 x (Rec0 v)) where
+  parseWithRubric (_ :: Proxy k) (Field fieldName) = M1 . K1 <$> parseField @_ @k fieldName
+
+instance (ParsingRubric k, Applicative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :*: right) where
+  parseWithRubric _ (FieldTree left right) =
+    (:*:) <$> parseWithRubric (Proxy @k) left <*> parseWithRubric (Proxy @k) right
+
+instance (ParsingRubric k, Functor (ParserType k), ParseableWithRubric k prod) => ParseableWithRubric k (D1 x (C1 y prod)) where
+  parseWithRubric _ (Record prod) =
+    M1 . M1 <$> parseWithRubric (Proxy @k) prod
+
+instance (ParsingRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x (S1 y (Rec0 v))) where
+  parseWithRubric _ (Branch branchName) = M1 . M1 . K1 <$> parseBranch @_ @k branchName
+
+instance (ParsingRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x U1) where
+  parseWithRubric _ (Branch branchName) = M1 U1 <$ parseBranch0 @_ @k branchName
+
+instance (ParsingRubric k, Alternative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :+: right) where
+  parseWithRubric _ (BranchTree left right) = (L1 <$> parseWithRubric (Proxy @k) left) <|> (R1 <$> parseWithRubric (Proxy @k) right)
+
+-- applied to JSON
+instance ParsingRubric JSON where 
+  type RequiredConstraint JSON = FromJSON
+  type ParserType JSON = JSONParser
+  parseField fieldName = JSONParser \o ->
+    explicitParseField parseJSON o fieldName
+  parseBranch branchName = JSONParser \o ->
+    explicitParseField parseJSON o branchName
+  parseBranch0 branchName = JSONParser \o ->
+    do 
+        _ :: Value <- explicitParseField parseJSON o branchName
+        return ()
+
+newtype JSONParser a = JSONParser (Object -> Parser a)
   deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
 
-type FieldsFromJSON :: (Type -> Type) -> Constraint
-class FieldsFromJSON t where
-  fieldParser :: Aliases Text t -> FieldParser (t x)
+instance Alternative JSONParser where
+    empty = JSONParser \_ -> Control.Applicative.empty
+    JSONParser p1 <|> JSONParser p2 = JSONParser \o -> p1 o <|> p2 o
 
-instance FromJSON v => FieldsFromJSON (S1 x (Rec0 v)) where
-  fieldParser (Field fieldName) = FieldParser \o -> M1 . K1 <$> explicitParseField parseJSON o fieldName
-
-instance (FieldsFromJSON left, FieldsFromJSON right) => FieldsFromJSON (left :*: right) where
-  fieldParser (FieldTree left right) =
-    (:*:) <$> fieldParser left <*> fieldParser right
-
-instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsFromJSON prod) => FromJSON (JSONRecord s r) where
+instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (C1 y prod), ParsingRubric JSON) => FromJSON (JSONRecord s r) where
   parseJSON v =
     let Record prod = aliases @JSONRubric @JSON @r
-        FieldParser parser = fieldParser prod
-     in JSONRecord . to . M1 . M1 <$> withObject (symbolVal (Proxy @s)) parser v
+        JSONParser parser = parseWithRubric (Proxy @JSON) prod
+     in JSONRecord . to <$> withObject (symbolVal (Proxy @s)) parser v
 
-type BranchesFromJSON :: (Type -> Type) -> Constraint
-class BranchesFromJSON t where
-  branchParser :: Aliases Text t -> Object -> Parser (t x)
-
-instance FromJSON v => BranchesFromJSON (C1 x (S1 y (Rec0 v))) where
-  branchParser (Branch fieldName) = \o ->
-    do
-      value <- o .: fieldName
-      M1 . M1 . K1 <$> parseJSON value
-
-instance BranchesFromJSON (C1 x U1) where
-  branchParser (Branch fieldName) = \o ->
-    do
-      (_ :: Value) <- o .: fieldName
-      pure $ M1 U1
-
-instance (BranchesFromJSON left, BranchesFromJSON right) => BranchesFromJSON (left :+: right) where
-  branchParser (BranchTree left right) = \o ->
-    (L1 <$> branchParser left o) <|> (R1 <$> branchParser right o)
-
-instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesFromJSON (left :+: right)) => FromJSON (JSONSum s r) where
+instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (left :+: right), ParsingRubric JSON) => FromJSON (JSONSum s r) where
   parseJSON v =
     let Sum branches = aliases @JSONRubric @JSON @r
-     in JSONSum . to . M1 <$> withObject (symbolVal (Proxy @s)) (branchParser branches) v
+     in JSONSum . to <$> withObject (symbolVal (Proxy @s)) (parseWithRubric (Proxy @JSON) branches) v
 
 -- ToJSON
 --
@@ -252,3 +249,16 @@ instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
 
+-- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for record types,
+-- using DerivingVia.
+--
+-- The 'Symbol' type parameter is used in parse error messages.
+type JSONRecord :: Symbol -> Type -> Type
+newtype JSONRecord s r = JSONRecord r
+
+-- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for sum types,
+-- using DerivingVia.
+--
+-- The 'Symbol' type parameter is used in parse error messages.
+type JSONSum :: Symbol -> Type -> Type
+newtype JSONSum s r = JSONSum r
