@@ -134,7 +134,9 @@ instance Rubric JSON where
 instance ParserRubric JSON where 
   type RequiredConstraint JSON = FromJSON
   type ParserType JSON = Data.Aeson.Types.Parser 
-  parseLeaf = undefined
+  parseField = undefined
+  parseBranch = undefined
+  parseBranch0 = undefined
 
 -- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for record types,
 -- using DerivingVia.

@@ -47,6 +47,7 @@ import Data.Kind
 import Data.Proxy
 import GHC.Generics
 import GHC.TypeLits
+import Control.Applicative
 
 -- | This datatype carries the field aliases and matches the structure of the
 --   generic Rep' shape.
@@ -188,14 +189,16 @@ type ParserRubric :: k -> Constraint
 class Rubric k => ParserRubric k where
     type RequiredConstraint k :: Type -> Constraint  
     type ParserType k :: Type -> Type
-    parseLeaf :: RequiredConstraint k v => ForRubric k -> ParserType k v
+    parseField :: RequiredConstraint k v => ForRubric k -> ParserType k v
+    parseBranch :: RequiredConstraint k v => ForRubric k -> ParserType k v
+    parseBranch0 :: ForRubric k -> ParserType k ()
 
 type ParseableWithRubric :: k -> (Type -> Type) -> Constraint
 class ParseableWithRubric k t where
   parseWithRubric :: Proxy k -> Aliases (ForRubric k) t -> ParserType k (t x)
 
 instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (S1 x (Rec0 v)) where
-  parseWithRubric (_ :: Proxy k) (Field fieldName) = M1 . K1 <$> parseLeaf @_ @k fieldName
+  parseWithRubric (_ :: Proxy k) (Field fieldName) = M1 . K1 <$> parseField @_ @k fieldName
 
 instance (ParserRubric k, Applicative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :*: right) where
   parseWithRubric _ (FieldTree left right) =
@@ -205,9 +208,14 @@ instance (ParserRubric k, Functor (ParserType k), ParseableWithRubric k prod) =>
   parseWithRubric _ (Record prod) =
     M1 . M1 <$> parseWithRubric (Proxy @k) prod
 
--- instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x (S1 y (Rec0 v))) where
---   parseWithRubric _ (Branch branchName) = M1 . M1 . K1 <$> parseLeaf @_ @k branchName
+instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x (S1 y (Rec0 v))) where
+  parseWithRubric _ (Branch branchName) = M1 . M1 . K1 <$> parseBranch @_ @k branchName
 
+instance (ParserRubric k, Functor (ParserType k), RequiredConstraint k v) => ParseableWithRubric k (C1 x U1) where
+  parseWithRubric _ (Branch branchName) = M1 U1 <$ parseBranch0 @_ @k branchName
+
+instance (ParserRubric k, Alternative (ParserType k), ParseableWithRubric k left, ParseableWithRubric k right) => ParseableWithRubric k (left :+: right) where
+  parseWithRubric _ (BranchTree left right) = (L1 <$> parseWithRubric (Proxy @k) left) <|> (R1 <$> parseWithRubric (Proxy @k) right)
 
 --
 -- deprecated
