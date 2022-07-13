@@ -15,20 +15,24 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE LambdaCase #-}
-module ByOtherNames.TypeLevel where
+module ByOtherNames.TypeLevel (
+    DemotedTypeForKind,
+    DemotableType (..),
+    GDemotableAnnsSumType (..)
+) where
 
 import Data.Kind
-import Data.Proxy
 import GHC.Generics
 import GHC.TypeLits
 
-class DemotableAnnKind ka where
-    type DemotedAnnType ka :: Type
-    demoteAnn :: DemotedAnnType ka
+type DemotedTypeForKind :: ka -> Type
+type family DemotedTypeForKind ka
 
--- type GDemotableAnnsSumType :: ka -> [ '(Symbol, ka) ] -> (k -> Type) -> [ '(Symbol, ka) ] -> Constraint
-class DemotableAnnKind ka => GDemotableAnnsSumType ka (before :: [ ( Symbol, ka) ]) rep (after  :: [ (Symbol, ka)]) | before rep -> after where
-   gdemotedAnnForBrach :: rep z -> DemotedAnnType ka
+class DemotableType (t :: ka) where
+    demote :: DemotedTypeForKind ka
+
+class GDemotableAnnsSumType ka (before :: [ ( Symbol, ka) ]) rep (after  :: [ (Symbol, ka)]) | before rep -> after where
+   gdemotedAnnForBrach :: rep z -> DemotedTypeForKind ka
 
 instance GDemotableAnnsSumType ka before (left :+: right) after => GDemotableAnnsSumType ka before (D1 x (left :+: right)) after where
     gdemotedAnnForBrach (M1 sum) = gdemotedAnnForBrach @ka @before @(left :+: right) @after sum
@@ -42,21 +46,6 @@ instance (GDemotableAnnsSumType ka before left middle,
       R1 rightBranch ->
         gdemotedAnnForBrach @ka @middle @right @after rightBranch
 
-instance DemotableAnnKind ka => GDemotableAnnsSumType ka ('(name, ann) ': after) (C1 (MetaCons name fixity b) slots) after where
-    gdemotedAnnForBrach _ = demoteAnn @ann
+instance DemotableType ann => GDemotableAnnsSumType ka ('(name, ann) ': after) (C1 (MetaCons name fixity b) slots) after where
+    gdemotedAnnForBrach _ = demote @ka @ann
 
-
-
--- demotedAnnForBrach :: 
-
--- type TypeLevelAnns :: a -> (k -> Type) -> (k -> Type)
--- type family TypeLevelAnns a rep where
---     TypeLevelAnns a (D1 x (C1 y fields)) = D1 x (C1 y (TypeLevelAnns a fields))
---     TypeLevelAnns a (D1 x (left :+: right)) = D1 x (TypeLevelAnns a left :+: TypeLevelAnns a right)
---     TypeLevelAnns a (left :*: right) = TypeLevelAnns a left :*: TypeLevelAnns a right
---     TypeLevelAnns a (left :+: right) = TypeLevelAnns a left :+: TypeLevelAnns a right
---     TypeLevelAnns a (S1 metasel v) = a
---     TypeLevelAnns a (C1 metacons v) = a
-
--- instance JsonP typelist rep2 rep '[]
--- before repann rep after  
