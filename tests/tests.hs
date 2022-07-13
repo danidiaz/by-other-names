@@ -61,7 +61,7 @@ data Summy
   = Aa Int
   | Bb Bool
   | Cc
-  | Dd Char
+  | Dd Char Bool Int
   | Ee Int
   deriving (Read, Show, Eq, Generic)
   deriving (FromJSON, ToJSON) via (JSONSum "sum" Summy)
@@ -117,7 +117,7 @@ tests =
         [ testCase "a" $ roundtrip $ Aa 5,
           testCase "b" $ roundtrip $ Bb False,
           testCase "c" $ roundtrip $ Cc,
-          testCase "d" $ roundtrip $ Dd 'f',
+          testCase "d" $ roundtrip $ Dd 'f' True 0,
           testCase "e" $ roundtrip $ Ee 3
         ]
     ]

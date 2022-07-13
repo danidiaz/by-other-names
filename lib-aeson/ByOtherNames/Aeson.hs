@@ -184,17 +184,24 @@ type BranchesFromJSON :: (Type -> Type) -> Constraint
 class BranchesFromJSON t where
   branchParser :: Aliases Text t -> Object -> Parser (t x)
 
+instance BranchesFromJSON (C1 x U1) where
+  branchParser (Branch fieldName) = \o ->
+    do
+      (_ :: Value) <- o .: Data.Aeson.Key.fromText fieldName
+      pure $ M1 U1
+
 instance FromJSON v => BranchesFromJSON (C1 x (S1 y (Rec0 v))) where
   branchParser (Branch fieldName) = \o ->
     do
       value <- o .: Data.Aeson.Key.fromText fieldName
       M1 . M1 . K1 <$> parseJSON value
 
-instance BranchesFromJSON (C1 x U1) where
+instance ToProductInBranch (left :*: right) => BranchesFromJSON (C1 x (left :*: right)) where
   branchParser (Branch fieldName) = \o ->
-    do
-      (_ :: Value) <- o .: Data.Aeson.Key.fromText fieldName
-      pure $ M1 U1
+    do 
+      valueList <- o .: Data.Aeson.Key.fromText fieldName
+      (prod, _) <- fromValueList valueList
+      pure (M1 prod)
 
 instance (BranchesFromJSON left, BranchesFromJSON right) => BranchesFromJSON (left :+: right) where
   branchParser (BranchTree left right) = \o ->
@@ -219,8 +226,8 @@ instance BranchesToJSON (C1 x U1) where
 instance ToJSON v => BranchesToJSON (C1 x (S1 y (Rec0 v))) where
   branchConverter (Branch fieldName) = BranchConverter \(M1 (M1 (K1 v))) -> object [(Data.Aeson.Key.fromText fieldName, toJSON v)]
 
-instance ProductInBranch (left :*: right) => BranchesToJSON (C1 x (left :*: right)) where
-  branchConverter (Branch fieldName) = BranchConverter \(M1 prod) -> object [(Data.Aeson.Key.fromText fieldName, toJSON (valueList prod))]
+instance FromProductInBranch (left :*: right) => BranchesToJSON (C1 x (left :*: right)) where
+  branchConverter (Branch fieldName) = BranchConverter \(M1 prod) -> object [(Data.Aeson.Key.fromText fieldName, toJSON (toValueList prod))]
 
 instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+: right) where
   branchConverter (BranchTree left right) =
@@ -238,12 +245,29 @@ instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+
         BranchConverter branchesToValues = branchConverter branches
      in branchesToValues a
 
-type ProductInBranch :: (Type -> Type) -> Constraint
-class ProductInBranch x where
-  valueList :: x z -> [Value]
+type FromProductInBranch :: (Type -> Type) -> Constraint
+class FromProductInBranch x where
+  toValueList :: x z -> [Value]
 
-instance ToJSON v => ProductInBranch (S1 x (Rec0 v)) where
-  valueList (M1 (K1 v)) = [toJSON v]
+instance ToJSON v => FromProductInBranch (S1 x (Rec0 v)) where
+  toValueList (M1 (K1 v)) = [toJSON v]
 
-instance (ProductInBranch left, ProductInBranch right) => ProductInBranch (left :*: right) where
-  valueList (left :*: right) = valueList left ++ valueList right
+instance (FromProductInBranch left, FromProductInBranch right) => FromProductInBranch (left :*: right) where
+  toValueList (left :*: right) = toValueList left ++ toValueList right
+
+type ToProductInBranch :: (Type -> Type) -> Constraint
+class ToProductInBranch x where
+  fromValueList :: [Value] -> Parser (x z, [Value])
+
+instance FromJSON r => ToProductInBranch (S1 x (Rec0 r)) where
+  fromValueList vs = case vs of
+    [] -> parseFail "not enough field values for branch"  
+    v : vs -> do
+      r <- parseJSON v 
+      pure (M1 (K1 r), vs)
+
+instance (ToProductInBranch left,  ToProductInBranch right) => ToProductInBranch (left :*: right) where
+  fromValueList vs0 = do
+      (left, vs1) <- fromValueList vs0
+      (right, vs2) <- fromValueList vs1
+      pure (left :*: right, vs2)
