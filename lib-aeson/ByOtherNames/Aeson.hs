@@ -56,9 +56,9 @@
 -- instance Aliased JSON Foo where
 --   aliases =
 --     aliasListBegin
---       $ alias (Proxy @"aa") "aax"
---       $ alias (Proxy @"bb") "bbx"
---       $ alias (Proxy @"cc") "ccx"
+--       $ alias (Proxy \@"aa") "aax"
+--       $ alias (Proxy \@"bb") "bbx"
+--       $ alias (Proxy \@"cc") "ccx"
 --       $ aliasListEnd
 --
 -- data Summy
@@ -71,9 +71,9 @@
 -- instance Aliased JSON Summy where
 --   aliases =
 --     aliasListBegin
---       $ alias (Proxy @"Aa") "Aax"
---       $ alias (Proxy @"Bb") "Bbx"
---       $ alias (Proxy @"Cc") "Ccx"
+--       $ alias (Proxy \@"Aa") "Aax"
+--       $ alias (Proxy \@"Bb") "Bbx"
+--       $ alias (Proxy \@"Cc") "Ccx"
 --       $ aliasListEnd
 -- @
 module ByOtherNames.Aeson
