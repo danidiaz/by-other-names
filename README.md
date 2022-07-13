@@ -1,6 +1,3 @@
-(**NOTE**: see this Cabal issue https://github.com/haskell/cabal/issues/6039
-for progress in handling packages with multiple public libraries.)
-
 # by-other-names
 
 Give aliases to record fields.
@@ -20,40 +17,12 @@ called a "rubric".
 
 ## How to depend on this library?
 
-This is a Cabal package with multiple public libraries.
+```
+build-depends:
+  by-other-names ^>= 1.2.0.0
+```
 
-- **by-other-names** 
-
-  The general mechanism for defining field aliases. 
-
-  Only depend on this if you are developing your own adapter for some new
-  rubric.
-
-  ```
-  build-depends:
-    by-other-names ^>= 1.0.2.0
-  ```
-
-- **by-other-names:aeson-adapter** 
-
-  Helpers for defining aeson's FromJSON and ToJSON instances with aliases field
-  names.
-
-  ```
-  build-depends:
-    by-other-names:aeson-adapter  ^>= 1.0.2.0
-  ```
-
-- **by-other-names:th** 
-
-  Provides a quasiquoter with a simplified syntax for defining aliases.
-
-  ```
-  build-depends:
-    by-other-names:th  ^>= 1.0.2.0
-  ```
-
-## How to use by-other-names:aeson-adapter?
+## How to use the Aeson adapter?
 
 Here are two example, one for a record and another for a sum type:
 
@@ -117,9 +86,9 @@ that parameterize the newtypes are used in parse error messages.
 
 There are limitations on sum types though:
 
-- Each branch can have zero or one fields, and the field can't have a selector.
+- Fields in branches of sum types can't have selectors. When there is more than one field in a branch, they are parsed as a JSON Array.
 
-- Only the "object with a single key consisting in the branch tag" style of serialization is supported.
+- For sum types, only the "object with a single key consisting in the branch tag" style of serialization is supported.
 
 ## How to use by-other-names:th?
 
