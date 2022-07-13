@@ -22,26 +22,28 @@ import Data.Proxy
 import GHC.Generics
 import GHC.TypeLits
 
-class Demotable ka (t :: Type) | ka -> t where
-    demote :: t
+class DemotableAnn ka (t :: Type) | ka -> t where
+    demoteAnn :: t
 
 type GDemotableAnnsSumType :: Type -> [ (Symbol, ka) ] -> (k -> Type) -> [ (Symbol, ka) ] -> Constraint
 class GDemotableAnnsSumType t (before :: [ (Symbol, ka) ]) rep (after  :: [(Symbol, ka)]) | before rep -> after where
-    gdemotedAnnForBrach :: forall ka k t before rep after (z :: k) . rep z -> t
+    gdemotedAnnForBrach :: rep z -> t
 
 instance GDemotableAnnsSumType t before (left :+: right) after => GDemotableAnnsSumType t before (D1 x (left :+: right)) after where
-    gdemotedAnnForBrach = gdemotedAnnForBrach @_ @_ @t @before @(left :+: right) @after 
+    gdemotedAnnForBrach (M1 sum) = gdemotedAnnForBrach @_ @_ @t @before @(left :+: right) @after sum
 
 instance (GDemotableAnnsSumType t before left middle,
           GDemotableAnnsSumType t middle right after)
             => GDemotableAnnsSumType t before (left :+: right) after where
     gdemotedAnnForBrach = \case
       L1 leftBranch ->
-        undefined
-        -- gdemotedAnnForBrach @_ @_ @t @before @left @middle leftBranch
+        gdemotedAnnForBrach @_ @_ @t @before @left @middle leftBranch
       R1 rightBranch ->
-        undefined
-        -- gdemotedAnnForBrach @_ @_ @t @middle @right @after rightBranch
+        gdemotedAnnForBrach @_ @_ @t @middle @right @after rightBranch
+
+instance DemotableAnn ka t => GDemotableAnnsSumType ka ('(name, t) ': after) (C1 (MetaCons name fixity b) slots) after where
+    gdemotedAnnForBrach _ = demoteAnn @ka @t
+
 
 
 -- demotedAnnForBrach :: 
