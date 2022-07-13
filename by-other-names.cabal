@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                by-other-names
-version:             1.1.0.0
+version:             1.2.0.0
 synopsis:            Give aliases to record fields.
 
 description:         Give aliases to record fields.
@@ -28,7 +28,7 @@ library
 library aeson-adapter
   exposed-modules:     ByOtherNames.Aeson
   build-depends:       base                 >= 4.10.0.0 && < 5,
-                       aeson                >= 1.5.2.0,
+                       aeson                >= 2.1.0.0,
                        text                 >= 1.2.3.0,
                        by-other-names
   hs-source-dirs:      lib-aeson
