@@ -4,15 +4,14 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Main where
 
-import ByOtherNames.TH
 import ByOtherNames.Aeson
   ( Aliased,
     JSONRecord (..),
@@ -24,14 +23,15 @@ import ByOtherNames.Aeson
     aliasListEnd,
     aliases,
   )
+import ByOtherNames.TH
 import ByOtherNames.TypeLevel
+import Control.Monad (forM)
 import Data.Aeson
 import Data.Aeson.Types
 import GHC.Generics
 import GHC.TypeLits
 import Test.Tasty
 import Test.Tasty.HUnit
-import Control.Monad (forM)
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -39,21 +39,22 @@ data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
 
 instance Aliased JSON Foo where
   aliases =
-    aliasListBegin
-      $ alias (Proxy @"aa") "aax"
-      $ alias (Proxy @"bb") "bbx"
-      $ alias (Proxy @"cc") "ccx"
-      $ alias (Proxy @"dd") "ddx"
-      $ alias (Proxy @"ee") "eex"
-      $ aliasListEnd
-
+    aliasListBegin $
+      alias (Proxy @"aa") "aax" $
+        alias (Proxy @"bb") "bbx" $
+          alias (Proxy @"cc") "ccx" $
+            alias (Proxy @"dd") "ddx" $
+              alias (Proxy @"ee") "eex" $
+                aliasListEnd
 
 data FooTH = FooTH {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
   deriving (Read, Show, Eq, Generic)
   deriving (FromJSON, ToJSON) via (JSONRecord "obj" FooTH)
 
 instance Aliased JSON FooTH where
-  aliases = [aliasList| 
+  aliases =
+    [aliasList| 
+
     xa = "aax",
     xb = "bbx",
     xc = "ccx",
@@ -72,13 +73,13 @@ data Summy
 
 instance Aliased JSON Summy where
   aliases =
-    aliasListBegin
-      $ alias (Proxy @"Aa") "Aax"
-      $ alias (Proxy @"Bb") "Bbx"
-      $ alias (Proxy @"Cc") "Ccx"
-      $ alias (Proxy @"Dd") "Ddx"
-      $ alias (Proxy @"Ee") "Eex"
-      $ aliasListEnd
+    aliasListBegin $
+      alias (Proxy @"Aa") "Aax" $
+        alias (Proxy @"Bb") "Bbx" $
+          alias (Proxy @"Cc") "Ccx" $
+            alias (Proxy @"Dd") "Ddx" $
+              alias (Proxy @"Ee") "Eex" $
+                aliasListEnd
 
 roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO ()
 roundtrip t =
@@ -93,9 +94,9 @@ data SingleField = SingleField {single :: Int}
 
 instance Aliased JSON SingleField where
   aliases =
-    aliasListBegin
-      $ alias (Proxy @"single") "Aa"
-      $ aliasListEnd
+    aliasListBegin $
+      alias (Proxy @"single") "Aa" $
+        aliasListEnd
 
 -- data SingleBranch = SingleBranch Int
 --   deriving (Read, Show, Eq, Generic)
@@ -109,32 +110,34 @@ instance Aliased JSON SingleField where
 
 --
 -- Type-level annotation test
-data RetCode = E1 | E2 | E3 deriving Show
+data RetCode = E1 | E2 | E3 deriving (Show)
 
 type instance DemotedTypeForKind RetCode = Int
+
 instance DemotableType E1 where
   demote = 1
+
 instance DemotableType E2 where
   demote = 2
+
 instance DemotableType E3 where
   demote = 3
 
-type SummyTypeLevelAnns :: [ (Symbol, RetCode ) ]
-type SummyTypeLevelAnns = '[ 
-    '("Aa", E1),
-    '("Bb", E2),
-    '("Cc", E3),
-    '("Dd", E1),
-    '("Ee", E2)
-  ]
+type SummyTypeLevelAnns :: [(Symbol, RetCode)]
+type SummyTypeLevelAnns =
+  '[ '("Aa", E1),
+     '("Bb", E2),
+     '("Cc", E3),
+     '("Dd", E1),
+     '("Ee", E2)
+   ]
 
 summyDemotedAnnForBrach :: Summy -> Int
-summyDemotedAnnForBrach s = gdemotedAnnForBrach @RetCode @SummyTypeLevelAnns @(Rep Summy) @'[] (from s)
+summyDemotedAnnForBrach s = gdemoteAnnForBrach @RetCode @SummyTypeLevelAnns @(Rep Summy) @'[] (from s)
 
 testSummyDemotion :: Int -> Summy -> IO ()
 testSummyDemotion expected s =
   assertEqual "demoted annotation matches" expected (summyDemotedAnnForBrach s)
-
 
 --
 --
