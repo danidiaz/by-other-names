@@ -24,7 +24,6 @@ import ByOtherNames.Aeson
     aliases,
   )
 import ByOtherNames.TH
-import ByOtherNames.TypeLevel
 import Control.Monad (forM)
 import Data.Aeson
 import Data.Aeson.Types
@@ -109,37 +108,6 @@ instance Aliased JSON SingleField where
 --         $ aliasListEnd
 
 --
--- Type-level annotation test
-data RetCode = E1 | E2 | E3 deriving (Show)
-
-type instance DemotedTypeForKind RetCode = Int
-
-instance DemotableType E1 where
-  demote = 1
-
-instance DemotableType E2 where
-  demote = 2
-
-instance DemotableType E3 where
-  demote = 3
-
-type SummyTypeLevelAnns :: [(Symbol, RetCode)]
-type SummyTypeLevelAnns =
-  '[ '("Aa", E1),
-     '("Bb", E2),
-     '("Cc", E3),
-     '("Dd", E1),
-     '("Ee", E2)
-   ]
-
-summyDemotedAnnForBrach :: Summy -> Int
-summyDemotedAnnForBrach s = gdemoteAnnForBrach @RetCode @SummyTypeLevelAnns @(Rep Summy) @'[] (from s)
-
-testSummyDemotion :: Int -> Summy -> IO ()
-testSummyDemotion expected s =
-  assertEqual "demoted annotation matches" expected (summyDemotedAnnForBrach s)
-
---
 --
 main :: IO ()
 main = defaultMain tests
@@ -157,13 +125,5 @@ tests =
           testCase "c" $ roundtrip $ Cc,
           testCase "d" $ roundtrip $ Dd 'f' True 0,
           testCase "e" $ roundtrip $ Ee 3
-        ],
-      testGroup
-        "type-level annotations"
-        [ testCase "a" $ testSummyDemotion 1 $ Aa 5,
-          testCase "b" $ testSummyDemotion 2 $ Bb False,
-          testCase "c" $ testSummyDemotion 3 $ Cc,
-          testCase "d" $ testSummyDemotion 1 $ Dd 'f' True 0,
-          testCase "e" $ testSummyDemotion 2 $ Ee 3
         ]
     ]

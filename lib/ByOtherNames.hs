@@ -32,9 +32,10 @@ module ByOtherNames
     alias,
     aliasListEnd,
     Aliased (aliases),
+    Rubric (..),
+    -- * Re-exports
     module Data.Proxy,
     Symbol,
-    Rubric (..),
   )
 where
 
