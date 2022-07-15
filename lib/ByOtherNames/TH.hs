@@ -49,11 +49,9 @@ quoteExp' input = do
       pure $ TH.AppE (VarE (mkName "aliasListBegin")) $
         foldr addAlias (VarE (mkName "aliasListEnd")) pairs
   where
-    mkProxy fieldName =
-      AppTypeE (ConE (mkName "Proxy")) (LitT (StrTyLit fieldName))
     addAlias (fieldName, fieldAlias) =
       TH.AppE $
-        VarE (mkName "alias") `TH.AppE` mkProxy fieldName `TH.AppE` LitE (StringL fieldAlias)
+        VarE (mkName "alias") `TH.AppTypeE` LitT (StrTyLit fieldName) `TH.AppE` LitE (StringL fieldAlias)
 
 parseManyAlias :: ReadPrec [(String, String)]
 parseManyAlias = do

@@ -17,7 +17,6 @@ import ByOtherNames.Aeson
     JSONRecord (..),
     JSONRubric (JSON),
     JSONSum (..),
-    Proxy (Proxy),
     alias,
     aliasListBegin,
     aliasListEnd,
@@ -38,13 +37,13 @@ data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
 
 instance Aliased JSON Foo where
   aliases =
-    aliasListBegin $
-      alias (Proxy @"aa") "aax" $
-        alias (Proxy @"bb") "bbx" $
-          alias (Proxy @"cc") "ccx" $
-            alias (Proxy @"dd") "ddx" $
-              alias (Proxy @"ee") "eex" $
-                aliasListEnd
+    aliasListBegin
+      . alias @"aa" "aax"
+      . alias @"bb" "bbx"
+      . alias @"cc" "ccx"
+      . alias @"dd" "ddx"
+      . alias @"ee" "eex"
+      $ aliasListEnd
 
 data FooTH = FooTH {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -72,13 +71,13 @@ data Summy
 
 instance Aliased JSON Summy where
   aliases =
-    aliasListBegin $
-      alias (Proxy @"Aa") "Aax" $
-        alias (Proxy @"Bb") "Bbx" $
-          alias (Proxy @"Cc") "Ccx" $
-            alias (Proxy @"Dd") "Ddx" $
-              alias (Proxy @"Ee") "Eex" $
-                aliasListEnd
+    aliasListBegin
+      . alias @"Aa" "Aax"
+      . alias @"Bb" "Bbx"
+      . alias @"Cc" "Ccx"
+      . alias @"Dd" "Ddx"
+      . alias @"Ee" "Eex"
+      $ aliasListEnd
 
 roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO ()
 roundtrip t =
@@ -93,9 +92,9 @@ data SingleField = SingleField {single :: Int}
 
 instance Aliased JSON SingleField where
   aliases =
-    aliasListBegin $
-      alias (Proxy @"single") "Aa" $
-        aliasListEnd
+    aliasListBegin
+      . alias @"single" "Aa"
+      $ aliasListEnd
 
 -- data SingleBranch = SingleBranch Int
 --   deriving (Read, Show, Eq, Generic)

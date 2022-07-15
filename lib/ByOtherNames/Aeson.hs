@@ -91,9 +91,6 @@ module ByOtherNames.Aeson
     -- * Re-exports from Data.Aeson
     FromJSON,
     ToJSON,
-
-    -- * Re-exports from Data.Proxy
-    Proxy (..),
   )
 where
 
@@ -105,6 +102,7 @@ import Data.Functor.Compose
 import Data.Kind
 import GHC.Generics
 import GHC.TypeLits
+import Data.Proxy
 
 -- | Aliases for JSON serialization fall under this 'Rubric'.
 -- The constructor 'JSON' is used as a type, with DataKinds.

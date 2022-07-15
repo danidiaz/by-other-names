@@ -34,7 +34,6 @@ module ByOtherNames
     Aliased (aliases),
     Rubric (..),
     -- * Re-exports
-    module Data.Proxy,
     Symbol,
   )
 where
@@ -77,8 +76,9 @@ data AliasList a names where
   Cons :: Proxy name -> a -> AliasList a names -> AliasList a (name : names)
 
 -- | Add an alias to an `AliasList`.
-alias :: Proxy name -> a -> AliasList a names -> AliasList a (name : names)
-alias = Cons
+-- __/TYPE APPLICATION REQUIRED!/__ You must provide the field/branch name using a type application. 
+alias :: forall name a names. a -> AliasList a names -> AliasList a (name : names)
+alias = Cons (Proxy @name)
 
 -- | Define the aliases for a type by listing them. 
 --
