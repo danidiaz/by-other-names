@@ -69,7 +69,7 @@ data Aliases a rep where
     Aliases a (D1 x (C1 y fields))
 
 -- | An intermediate datatype that makes it easier to specify the aliases.  See
--- also 'fieldAliases' and 'branchAliases'.
+-- 'aliasListBegin', 'alias' and 'aliasListEnd'.
 type AliasList :: Type -> [Symbol] -> Type
 data AliasList a names where
   Null :: AliasList a '[]

@@ -108,7 +108,7 @@ import Data.Proxy
 -- The constructor 'JSON' is used as a type, with DataKinds.
 data JSONRubric = JSON
 
--- | The aliases will be of type 'Data.Text'.
+-- | The aliases will be of type "Data.Aeson.Key".
 instance Rubric JSON where
   type AliasType JSON = Key
 
