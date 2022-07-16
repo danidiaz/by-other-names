@@ -217,5 +217,4 @@ instance (Aliased JSON r, GFromSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
 --
 instance (Aliased JSON r, GFromProduct ToJSON (Rep r)) => ToJSON (JSONRecord s r) where
   toJSON (JSONRecord o) =
-    gFromProduct @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r)
-      object (\a v -> (a, toJSON v)) (from @r o)
+    object $ gFromProduct @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)

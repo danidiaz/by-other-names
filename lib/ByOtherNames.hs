@@ -189,43 +189,29 @@ class Rubric k where
 class GFromProduct (c :: Type -> Constraint) rep where
   gFromProduct ::
     Aliases a rep ->
-    ([o] -> r) ->
     (forall v. c v => a -> v -> o) ->
     rep z ->
-    r
+    [o]
   gProductEnum :: 
     Aliases a rep ->
     (forall v. c v => a -> Proxy v -> o) ->
     [o]
 
+instance GFromProduct c prod => GFromProduct c (D1 x (C1 y prod)) where
+  gFromProduct (Record as) renderField (M1 (M1 prod)) = 
+    gFromProduct @c as renderField prod
+  gProductEnum (Record as) renderField = gProductEnum @c @prod as renderField
 
-instance GFromProductFields c prod => GFromProduct c (D1 x (C1 y prod)) where
-  gFromProduct (Record as) renderProduct renderField (M1 (M1 prod)) = 
-    renderProduct (gFromProductFields @c as renderField prod)
-  gProductEnum (Record as) renderField = gProductEnumFields @c @prod as renderField
+instance c v => GFromProduct c (S1 x (Rec0 v)) where
+  gFromProduct (Field a) renderField (M1 (K1 v)) = [renderField a v]
+  gProductEnum (Field a) renderField = [renderField a (Proxy @v)]
 
-class GFromProductFields (c :: Type -> Constraint) rep where
-  gFromProductFields ::
-    Aliases a rep ->
-    (forall v. c v => a -> v -> o) ->
-    rep z ->
-    [o]
-  gProductEnumFields ::
-    Aliases a rep ->
-    (forall v. c v => a -> Proxy v -> o) ->
-    [o]
-
-
-instance c v => GFromProductFields c (S1 x (Rec0 v)) where
-  gFromProductFields (Field a) renderField (M1 (K1 v)) = [renderField a v]
-  gProductEnumFields (Field a) renderField = [renderField a (Proxy @v)]
-
-instance (GFromProductFields c left, GFromProductFields c right) =>
-  GFromProductFields c (left :*: right) where
-  gFromProductFields (FieldTree aleft aright) renderField (left :*: right) = 
-    gFromProductFields @c aleft renderField left  ++ gFromProductFields @c aright renderField right
-  gProductEnumFields (FieldTree aleft aright) renderField =
-    gProductEnumFields @c @left aleft renderField ++ gProductEnumFields @c @right aright renderField 
+instance (GFromProduct c left, GFromProduct c right) =>
+  GFromProduct c (left :*: right) where
+  gFromProduct (FieldTree aleft aright) renderField (left :*: right) = 
+    gFromProduct @c aleft renderField left  ++ gFromProduct @c aright renderField right
+  gProductEnum (FieldTree aleft aright) renderField =
+    gProductEnum @c @left aleft renderField ++ gProductEnum @c @right aright renderField 
 
 --
 --
