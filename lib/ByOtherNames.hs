@@ -38,6 +38,7 @@ module ByOtherNames
     Rubric (..),
     -- * Generic helpers
     GFromSum (..),
+    GFromProduct (..),
     -- * Re-exports
     Symbol,
   )
@@ -181,6 +182,37 @@ class (Rubric k, Generic r) => Aliased k r where
 type Rubric :: k -> Constraint
 class Rubric k where
   type AliasType k :: Type
+
+
+--
+--
+class GFromProduct (c :: Type -> Constraint) rep where
+  gFromProduct ::
+    Aliases a rep ->
+    ([o] -> r) ->
+    (forall v. c v => a -> v -> o) ->
+    rep z ->
+    r
+
+instance GFromProductFields c prod => GFromProduct c (D1 x (C1 y prod)) where
+  gFromProduct (Record as) renderProduct renderField (M1 (M1 prod)) = 
+    renderProduct (gFromProductFields @c as renderField prod)
+
+class GFromProductFields (c :: Type -> Constraint) rep where
+  gFromProductFields ::
+    Aliases a rep ->
+    (forall v. c v => a -> v -> o) ->
+    rep z ->
+    [o]
+
+instance c v => GFromProductFields c (S1 x (Rec0 v)) where
+  gFromProductFields (Field a) renderField (M1 (K1 v)) = [renderField a v]
+
+instance (GFromProductFields c left, GFromProductFields c right) =>
+  GFromProductFields c (left :*: right) where
+  gFromProductFields (FieldTree aleft aright) renderField (left :*: right) = 
+    gFromProductFields @c aleft renderField left  ++ gFromProductFields @c aright renderField right
+
 
 --
 --

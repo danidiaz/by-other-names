@@ -148,30 +148,6 @@ instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsFromJSO
         FieldParser parser = fieldParser prod
      in JSONRecord . to . M1 . M1 <$> withObject (symbolVal (Proxy @s)) parser v
 
---
---
-newtype FieldConverter a = FieldConverter (a -> [(Key, Value)])
-  deriving newtype (Semigroup, Monoid)
-
-type FieldsToJSON :: (Type -> Type) -> Constraint
-class FieldsToJSON t where
-  fieldConverter :: Aliases Key t -> FieldConverter (t x)
-
-instance ToJSON v => FieldsToJSON (S1 x (Rec0 v)) where
-  fieldConverter (Field fieldName) = FieldConverter \(M1 (K1 v)) -> [(fieldName, toJSON v)]
-
-instance (FieldsToJSON left, FieldsToJSON right) => FieldsToJSON (left :*: right) where
-  fieldConverter (FieldTree left right) =
-    FieldConverter \(leftFields :*: rightFields) ->
-      let FieldConverter leftConverter = fieldConverter left
-          FieldConverter rightConverter = fieldConverter right
-       in leftConverter leftFields ++ rightConverter rightFields
-
-instance (Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsToJSON prod) => ToJSON (JSONRecord s r) where
-  toJSON (JSONRecord (from -> M1 (M1 a))) =
-    let Record prod = aliases @JSONRubric @JSON @r
-        FieldConverter fieldsToValues = fieldConverter prod
-     in object (fieldsToValues a)
 
 --
 --
@@ -210,16 +186,6 @@ instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (left :+: right), Branches
 
 --
 --
-type FromProductInBranch :: (Type -> Type) -> Constraint
-class FromProductInBranch x where
-  toValueList :: x z -> [Value]
-
-instance ToJSON v => FromProductInBranch (S1 x (Rec0 v)) where
-  toValueList (M1 (K1 v)) = [toJSON v]
-
-instance (FromProductInBranch left, FromProductInBranch right) => FromProductInBranch (left :*: right) where
-  toValueList (left :*: right) = toValueList left ++ toValueList right
-
 type ToProductInBranch :: (Type -> Type) -> Constraint
 class ToProductInBranch x where
   fromValueList :: [Value] -> Parser (x z, [Value])
@@ -245,5 +211,11 @@ instance (Aliased JSON r, GFromSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
       (\key slots -> case slots of
         [] -> object [(key, Null)]
         [x] -> object [(key, toJSON x)]
-        xs -> object [(key, toJSON xs)]) toJSON (from @r @() o)
+        xs -> object [(key, toJSON xs)]) toJSON (from @r o)
 
+--
+--
+instance (Aliased JSON r, GFromProduct ToJSON (Rep r)) => ToJSON (JSONRecord s r) where
+  toJSON (JSONRecord o) =
+    gFromProduct @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r)
+      object (\a v -> (a, toJSON v)) (from @r o)
