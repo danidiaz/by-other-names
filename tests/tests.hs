@@ -30,6 +30,8 @@ import GHC.Generics
 import GHC.TypeLits
 import Test.Tasty
 import Test.Tasty.HUnit
+import Data.Typeable
+import ByOtherNames (GFromSum(gSumEnum))
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -79,6 +81,27 @@ instance Aliased JSON Summy where
       . alias @"Ee" "Eex"
       $ aliasListEnd
 
+ 
+enumSummy :: [(Key,[TypeRep])]
+enumSummy = gSumEnum @Typeable @(Rep Summy)
+    (aliasListBegin
+      . alias @"Aa" "Aax"
+      . alias @"Bb" "Bbx"
+      . alias @"Cc" "Ccx"
+      . alias @"Dd" "Ddx"
+      . alias @"Ee" "Eex"
+      $ aliasListEnd)
+    (,)
+    (typeRep)
+
+expectedEnumSummy :: [(Key,[TypeRep])]
+expectedEnumSummy =
+ [("Aax",[typeRep (Proxy @Int)]),("Bbx",[typeRep (Proxy @Bool)]),
+  ("Ccx",[]),("Ddx",[typeRep (Proxy @Char),typeRep (Proxy @Bool),typeRep (Proxy @Int)]),("Eex",[typeRep (Proxy @Int)])]
+
+-- >>> enumSummy
+
+
 roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO ()
 roundtrip t =
   let reparsed = parseEither parseJSON (toJSON t)
@@ -124,5 +147,9 @@ tests =
           testCase "c" $ roundtrip $ Cc,
           testCase "d" $ roundtrip $ Dd 'f' True 0,
           testCase "e" $ roundtrip $ Ee 3
+        ],
+      testGroup
+        "enum"
+        [ testCase "typeReps" $ assertEqual "typeReps match" expectedEnumSummy enumSummy
         ]
     ]

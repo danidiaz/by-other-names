@@ -223,12 +223,18 @@ class GFromSum (c :: Type -> Constraint) rep where
     (forall v. c v => v -> o) ->
     rep z ->
     r
+  gSumEnum ::
+    Aliases a rep ->
+    (a -> [o] -> r) ->
+    (forall v. c v => Proxy v -> o) ->
+    [r]
 
 instance
   (GFromSum c (left :+: right)) =>
   GFromSum c (D1 x (left :+: right))
   where
   gFromSum (Sum s) renderBranch renderSlot (M1 srep) = gFromSum @c s renderBranch renderSlot srep
+  gSumEnum (Sum s) renderBranch renderSlot = gSumEnum @c @_ @_ @_ s renderBranch renderSlot
 
 instance
   ( GFromSum c left,
@@ -239,19 +245,27 @@ instance
   gFromSum (BranchTree aleft aright) renderBranch renderSlot = \case
     L1 rleft -> gFromSum @c aleft renderBranch renderSlot rleft
     R1 rright -> gFromSum @c aright renderBranch renderSlot rright
+  gSumEnum (BranchTree aleft aright) renderBranch renderSlot = 
+    gSumEnum @c aleft renderBranch renderSlot ++ gSumEnum @c aright renderBranch renderSlot
+
 
 instance (GFromSumSlots c slots) => GFromSum c (C1 x slots) where
   gFromSum (Branch fieldName) renderBranch renderSlot (M1 slots) =
     renderBranch fieldName (gFromSumSlots @c renderSlot slots)
+  gSumEnum (Branch fieldName) renderBranch renderSlot = 
+    [renderBranch fieldName (gSumEnumSlots @c @slots renderSlot)]
 
 class GFromSumSlots (c :: Type -> Constraint) rep where
   gFromSumSlots :: (forall v. c v => v -> o) -> rep z -> [o]
+  gSumEnumSlots :: (forall v. c v => Proxy v -> o) -> [o]
 
 instance GFromSumSlots c U1 where
   gFromSumSlots _ _ = []
+  gSumEnumSlots _ = []
 
 instance c v => GFromSumSlots c (S1 y (Rec0 v)) where
   gFromSumSlots renderSlot (M1 (K1 v)) = [renderSlot v]
+  gSumEnumSlots renderSlot = [renderSlot (Proxy @v)]
 
 instance
   ( GFromSumSlots c left,
@@ -261,3 +275,5 @@ instance
   where
   gFromSumSlots renderSlot (left :*: right) =
     gFromSumSlots @c renderSlot left ++ gFromSumSlots @c renderSlot right
+  gSumEnumSlots renderSlot = 
+    gSumEnumSlots @c @left renderSlot ++ gSumEnumSlots @c @right renderSlot
