@@ -31,7 +31,7 @@ import GHC.TypeLits
 import Test.Tasty
 import Test.Tasty.HUnit
 import Data.Typeable
-import ByOtherNames (GFromSum(gSumEnum))
+import ByOtherNames 
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -46,6 +46,26 @@ instance Aliased JSON Foo where
       . alias @"dd" "ddx"
       . alias @"ee" "eex"
       $ aliasListEnd
+
+enumFoo :: [(Key,TypeRep)]
+enumFoo = gProductEnum @Typeable @(Rep Foo)
+    (aliasListBegin
+      . alias @"aa" "aax"
+      . alias @"bb" "bbx"
+      . alias @"cc" "ccx"
+      . alias @"dd" "ddx"
+      . alias @"ee" "eex"
+      $ aliasListEnd)
+    (\a proxy -> (a, typeRep proxy))
+
+expectedEnumFoo :: [(Key,TypeRep)]
+expectedEnumFoo =
+ [("aax",typeRep (Proxy @Int)),
+  ("bbx",typeRep (Proxy @Bool)),
+  ("ccx",typeRep (Proxy @Char)),
+  ("ddx",typeRep (Proxy @String)),
+  ("eex",typeRep (Proxy @Int))]
+
 
 data FooTH = FooTH {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -149,7 +169,9 @@ tests =
           testCase "e" $ roundtrip $ Ee 3
         ],
       testGroup
-        "enum"
-        [ testCase "typeReps" $ assertEqual "typeReps match" expectedEnumSummy enumSummy
+        "enums"
+        [ 
+          testCase "prod typeReps" $ assertEqual "prod typeReps match" expectedEnumFoo enumFoo
+        , testCase "sum typeReps" $ assertEqual "sum typeReps match" expectedEnumSummy enumSummy
         ]
     ]

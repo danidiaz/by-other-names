@@ -193,10 +193,16 @@ class GFromProduct (c :: Type -> Constraint) rep where
     (forall v. c v => a -> v -> o) ->
     rep z ->
     r
+  gProductEnum :: 
+    Aliases a rep ->
+    (forall v. c v => a -> Proxy v -> o) ->
+    [o]
+
 
 instance GFromProductFields c prod => GFromProduct c (D1 x (C1 y prod)) where
   gFromProduct (Record as) renderProduct renderField (M1 (M1 prod)) = 
     renderProduct (gFromProductFields @c as renderField prod)
+  gProductEnum (Record as) renderField = gProductEnumFields @c @prod as renderField
 
 class GFromProductFields (c :: Type -> Constraint) rep where
   gFromProductFields ::
@@ -204,15 +210,22 @@ class GFromProductFields (c :: Type -> Constraint) rep where
     (forall v. c v => a -> v -> o) ->
     rep z ->
     [o]
+  gProductEnumFields ::
+    Aliases a rep ->
+    (forall v. c v => a -> Proxy v -> o) ->
+    [o]
+
 
 instance c v => GFromProductFields c (S1 x (Rec0 v)) where
   gFromProductFields (Field a) renderField (M1 (K1 v)) = [renderField a v]
+  gProductEnumFields (Field a) renderField = [renderField a (Proxy @v)]
 
 instance (GFromProductFields c left, GFromProductFields c right) =>
   GFromProductFields c (left :*: right) where
   gFromProductFields (FieldTree aleft aright) renderField (left :*: right) = 
     gFromProductFields @c aleft renderField left  ++ gFromProductFields @c aright renderField right
-
+  gProductEnumFields (FieldTree aleft aright) renderField =
+    gProductEnumFields @c @left aleft renderField ++ gProductEnumFields @c @right aright renderField 
 
 --
 --
