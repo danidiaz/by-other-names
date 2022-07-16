@@ -210,37 +210,6 @@ instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (left :+: right), Branches
 
 --
 --
-newtype BranchConverter a = BranchConverter (a -> Value)
-
-type BranchesToJSON :: (Type -> Type) -> Constraint
-class BranchesToJSON t where
-  branchConverter :: Aliases Key t -> BranchConverter (t x)
-
-instance BranchesToJSON (C1 x U1) where
-  branchConverter (Branch fieldName) = BranchConverter \(M1 U1) -> object [(fieldName, Null)]
-
-instance ToJSON v => BranchesToJSON (C1 x (S1 y (Rec0 v))) where
-  branchConverter (Branch fieldName) = BranchConverter \(M1 (M1 (K1 v))) -> object [(fieldName, toJSON v)]
-
-instance FromProductInBranch (left :*: right) => BranchesToJSON (C1 x (left :*: right)) where
-  branchConverter (Branch fieldName) = BranchConverter \(M1 prod) -> object [(fieldName, toJSON (toValueList prod))]
-
-instance (BranchesToJSON left, BranchesToJSON right) => BranchesToJSON (left :+: right) where
-  branchConverter (BranchTree left right) =
-    BranchConverter \alternatives -> case alternatives of
-      L1 leftBranch ->
-        let BranchConverter leftConverter = branchConverter left
-         in leftConverter leftBranch
-      R1 rightBranch ->
-        let BranchConverter rightConverter = branchConverter right
-         in rightConverter rightBranch
-
-instance (Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesToJSON (left :+: right)) => ToJSON (JSONSum s r) where
-  toJSON (JSONSum (from -> M1 a)) =
-    let Sum branches = aliases @JSONRubric @JSON @r
-        BranchConverter branchesToValues = branchConverter branches
-     in branchesToValues a
-
 type FromProductInBranch :: (Type -> Type) -> Constraint
 class FromProductInBranch x where
   toValueList :: x z -> [Value]
@@ -267,3 +236,13 @@ instance (ToProductInBranch left, ToProductInBranch right) => ToProductInBranch 
     (left, vs1) <- fromValueList vs0
     (right, vs2) <- fromValueList vs1
     pure (left :*: right, vs2)
+
+--
+--
+instance (Aliased JSON r, GFromSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
+  toJSON (JSONSum o) =
+    gFromSum @ToJSON @(Rep r) @Key @Value @Value (aliases @JSONRubric @JSON @r)
+      (\key slots -> case slots of
+        [] -> object [(key, Null)]
+        xs -> object [(key, toJSON xs)]) toJSON (from @r @() o)
+

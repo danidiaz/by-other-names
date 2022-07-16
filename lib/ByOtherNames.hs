@@ -36,7 +36,8 @@ module ByOtherNames
     aliasListEnd,
     Aliased (aliases),
     Rubric (..),
-
+    -- * Generic helpers
+    GFromSum (..),
     -- * Re-exports
     Symbol,
   )
@@ -183,38 +184,38 @@ class Rubric k where
 
 --
 --
-class Rubric rubric => GFromSum rubric (c :: Type -> Constraint) rep where
+class GFromSum (c :: Type -> Constraint) rep where
   gFromSum ::
-    Aliases (AliasType rubric) rep ->
-    (AliasType rubric -> [o] -> r) ->
+    Aliases a rep ->
+    (a -> [o] -> r) ->
     (forall v. c v => v -> o) ->
     rep z ->
     r
 
 instance
-  (GFromSum rubric c (left :+: right)) =>
-  GFromSum rubric c (D1 x (left :+: right))
+  (GFromSum c (left :+: right)) =>
+  GFromSum c (D1 x (left :+: right))
   where
-  gFromSum (Sum s) renderBranch renderSlot (M1 srep) = gFromSum @rubric @c s renderBranch renderSlot srep
+  gFromSum (Sum s) renderBranch renderSlot (M1 srep) = gFromSum @c s renderBranch renderSlot srep
 
 instance
-  ( GFromSum rubric c left,
-    GFromSum rubric c right
+  ( GFromSum c left,
+    GFromSum c right
   ) =>
-  GFromSum rubric c (left :+: right)
+  GFromSum c (left :+: right)
   where
   gFromSum (BranchTree aleft aright) renderBranch renderSlot = \case
-    L1 rleft -> gFromSum @rubric @c aleft renderBranch renderSlot rleft
-    R1 rright -> gFromSum @rubric @c aright renderBranch renderSlot rright
+    L1 rleft -> gFromSum @c aleft renderBranch renderSlot rleft
+    R1 rright -> gFromSum @c aright renderBranch renderSlot rright
 
-instance (Rubric rubric, GFromSumSlots c slots) => GFromSum rubric c (C1 x slots) where
+instance (Rubric rubric, GFromSumSlots c slots) => GFromSum c (C1 x slots) where
   gFromSum (Branch fieldName) renderBranch renderSlot (M1 slots) =
     renderBranch fieldName (gFromSumSlots @c renderSlot slots)
 
 class GFromSumSlots (c :: Type -> Constraint) rep where
   gFromSumSlots :: (forall v. c v => v -> o) -> rep z -> [o]
 
-instance c v => GFromSumSlots c (C1 x U1) where
+instance c v => GFromSumSlots c U1 where
   gFromSumSlots _ _ = []
 
 instance c v => GFromSumSlots c (S1 y (Rec0 v)) where
