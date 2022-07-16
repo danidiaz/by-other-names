@@ -215,7 +215,7 @@ instance (GFromSumSlots c slots) => GFromSum c (C1 x slots) where
 class GFromSumSlots (c :: Type -> Constraint) rep where
   gFromSumSlots :: (forall v. c v => v -> o) -> rep z -> [o]
 
-instance c v => GFromSumSlots c U1 where
+instance GFromSumSlots c U1 where
   gFromSumSlots _ _ = []
 
 instance c v => GFromSumSlots c (S1 y (Rec0 v)) where

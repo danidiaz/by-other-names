@@ -244,5 +244,6 @@ instance (Aliased JSON r, GFromSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
     gFromSum @ToJSON @(Rep r) @Key @Value @Value (aliases @JSONRubric @JSON @r)
       (\key slots -> case slots of
         [] -> object [(key, Null)]
+        [x] -> object [(key, toJSON x)]
         xs -> object [(key, toJSON xs)]) toJSON (from @r @() o)
 
