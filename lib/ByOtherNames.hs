@@ -1,12 +1,15 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeApplications #-}
@@ -14,9 +17,6 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ConstraintKinds #-}
-{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 
 -- | This package provides the general mechanism for defining field and branch
@@ -36,6 +36,7 @@ module ByOtherNames
     aliasListEnd,
     Aliased (aliases),
     Rubric (..),
+
     -- * Re-exports
     Symbol,
   )
@@ -79,11 +80,11 @@ data AliasList a names where
   Cons :: Proxy name -> a -> AliasList a names -> AliasList a (name : names)
 
 -- | Add an alias to an `AliasList`.
--- __/TYPE APPLICATION REQUIRED!/__ You must provide the field/branch name using a type application. 
+-- __/TYPE APPLICATION REQUIRED!/__ You must provide the field/branch name using a type application.
 alias :: forall name a names. a -> AliasList a names -> AliasList a (name : names)
 alias = Cons (Proxy @name)
 
--- | Define the aliases for a type by listing them. 
+-- | Define the aliases for a type by listing them.
 --
 -- See also 'alias' and 'aliasListEnd'.
 aliasListBegin :: forall before a tree. (AliasTree before tree '[]) => AliasList a before -> Aliases a tree
@@ -182,49 +183,48 @@ class Rubric k where
 
 --
 --
-class Rubric rubric => GFromSum rubric (c :: Type -> Constraint) o r rep where
-  gFromSum :: Aliases (AliasType rubric) rep 
-           -> (AliasType rubric -> [o] -> r) 
-           -> (forall v . c v => v -> o) 
-           -> rep z 
-           -> r
+class Rubric rubric => GFromSum rubric (c :: Type -> Constraint) rep where
+  gFromSum ::
+    Aliases (AliasType rubric) rep ->
+    (AliasType rubric -> [o] -> r) ->
+    (forall v. c v => v -> o) ->
+    rep z ->
+    r
 
-instance (GFromSum rubric c o r (left :+: right)) 
-  => GFromSum rubric c o r (D1 x (left :+: right)) where
-  gFromSum (Sum s) renderBranch renderSlot (M1 srep) = gFromSum @rubric @c s renderBranch renderSlot srep 
+instance
+  (GFromSum rubric c (left :+: right)) =>
+  GFromSum rubric c (D1 x (left :+: right))
+  where
+  gFromSum (Sum s) renderBranch renderSlot (M1 srep) = gFromSum @rubric @c s renderBranch renderSlot srep
 
-instance (GFromSum rubric c o r left, 
-          GFromSum rubric c o r right) 
-  => GFromSum rubric c o r (left :+: right) where
-  gFromSum (BranchTree aleft aright) renderBranch renderSlot = \case 
-    L1 rleft -> gFromSum @rubric @c aleft renderBranch renderSlot rleft 
-    R1 rright -> gFromSum @rubric @c aright renderBranch renderSlot rright 
+instance
+  ( GFromSum rubric c left,
+    GFromSum rubric c right
+  ) =>
+  GFromSum rubric c (left :+: right)
+  where
+  gFromSum (BranchTree aleft aright) renderBranch renderSlot = \case
+    L1 rleft -> gFromSum @rubric @c aleft renderBranch renderSlot rleft
+    R1 rright -> gFromSum @rubric @c aright renderBranch renderSlot rright
 
-instance (Rubric rubric, GFromSumSlots c o slots) => GFromSum rubric c o r (C1 x slots) where
-  gFromSum (Branch fieldName) renderBranch renderSlot (M1 slots) = 
-    renderBranch fieldName (gFromSumSlots @c @o renderSlot slots)
+instance (Rubric rubric, GFromSumSlots c slots) => GFromSum rubric c (C1 x slots) where
+  gFromSum (Branch fieldName) renderBranch renderSlot (M1 slots) =
+    renderBranch fieldName (gFromSumSlots @c renderSlot slots)
 
--- instance Rubric rubric => GFromSum rubric c o r (C1 x U1) where
---   gFromSum (Branch fieldName) renderBranch _ _ = 
---     renderBranch fieldName [] 
--- 
--- instance (Rubric rubric, c v) 
---   => GFromSum rubric c o r (C1 x (S1 y (Rec0 v))) where
---   gFromSum (Branch fieldName) renderBranch renderSlot  (M1 slots) = 
---     renderBranch fieldName [gFromSumSlots @c @o renderSlot slots]
+class GFromSumSlots (c :: Type -> Constraint) rep where
+  gFromSumSlots :: (forall v. c v => v -> o) -> rep z -> [o]
 
-class GFromSumSlots (c :: Type -> Constraint) o rep where
-  gFromSumSlots :: (forall v . c v => v -> o) -> rep z -> [o]
-
-
-instance c v => GFromSumSlots c o (C1 x U1) where
+instance c v => GFromSumSlots c (C1 x U1) where
   gFromSumSlots _ _ = []
 
-instance c v => GFromSumSlots c o (S1 y (Rec0 v)) where
+instance c v => GFromSumSlots c (S1 y (Rec0 v)) where
   gFromSumSlots renderSlot (M1 (K1 v)) = [renderSlot v]
 
-instance (GFromSumSlots c o left,
-          GFromSumSlots c o right) =>
-  GFromSumSlots c o (left :*: right) where
-  gFromSumSlots renderSlot (left :*: right) = 
-    gFromSumSlots @c @o renderSlot left ++ gFromSumSlots @c @o renderSlot right
+instance
+  ( GFromSumSlots c left,
+    GFromSumSlots c right
+  ) =>
+  GFromSumSlots c (left :*: right)
+  where
+  gFromSumSlots renderSlot (left :*: right) =
+    gFromSumSlots @c renderSlot left ++ gFromSumSlots @c renderSlot right
