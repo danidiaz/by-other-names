@@ -14,6 +14,9 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 
 -- | This package provides the general mechanism for defining field and branch
@@ -177,3 +180,51 @@ type Rubric :: k -> Constraint
 class Rubric k where
   type AliasType k :: Type
 
+--
+--
+class Rubric rubric => GFromSum rubric (c :: Type -> Constraint) o r rep where
+  gFromSum :: Aliases (AliasType rubric) rep 
+           -> (AliasType rubric -> [o] -> r) 
+           -> (forall v . c v => v -> o) 
+           -> rep z 
+           -> r
+
+instance (GFromSum rubric c o r (left :+: right)) 
+  => GFromSum rubric c o r (D1 x (left :+: right)) where
+  gFromSum (Sum s) renderBranch renderSlot (M1 srep) = gFromSum @rubric @c s renderBranch renderSlot srep 
+
+instance (GFromSum rubric c o r left, 
+          GFromSum rubric c o r right) 
+  => GFromSum rubric c o r (left :+: right) where
+  gFromSum (BranchTree aleft aright) renderBranch renderSlot = \case 
+    L1 rleft -> gFromSum @rubric @c aleft renderBranch renderSlot rleft 
+    R1 rright -> gFromSum @rubric @c aright renderBranch renderSlot rright 
+
+instance (Rubric rubric, GFromSumSlots c o slots) => GFromSum rubric c o r (C1 x slots) where
+  gFromSum (Branch fieldName) renderBranch renderSlot (M1 slots) = 
+    renderBranch fieldName (gFromSumSlots @c @o renderSlot slots)
+
+-- instance Rubric rubric => GFromSum rubric c o r (C1 x U1) where
+--   gFromSum (Branch fieldName) renderBranch _ _ = 
+--     renderBranch fieldName [] 
+-- 
+-- instance (Rubric rubric, c v) 
+--   => GFromSum rubric c o r (C1 x (S1 y (Rec0 v))) where
+--   gFromSum (Branch fieldName) renderBranch renderSlot  (M1 slots) = 
+--     renderBranch fieldName [gFromSumSlots @c @o renderSlot slots]
+
+class GFromSumSlots (c :: Type -> Constraint) o rep where
+  gFromSumSlots :: (forall v . c v => v -> o) -> rep z -> [o]
+
+
+instance c v => GFromSumSlots c o (C1 x U1) where
+  gFromSumSlots _ _ = []
+
+instance c v => GFromSumSlots c o (S1 y (Rec0 v)) where
+  gFromSumSlots renderSlot (M1 (K1 v)) = [renderSlot v]
+
+instance (GFromSumSlots c o left,
+          GFromSumSlots c o right) =>
+  GFromSumSlots c o (left :*: right) where
+  gFromSumSlots renderSlot (left :*: right) = 
+    gFromSumSlots @c @o renderSlot left ++ gFromSumSlots @c @o renderSlot right
