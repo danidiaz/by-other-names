@@ -208,7 +208,7 @@ instance
     L1 rleft -> gFromSum @c aleft renderBranch renderSlot rleft
     R1 rright -> gFromSum @c aright renderBranch renderSlot rright
 
-instance (Rubric rubric, GFromSumSlots c slots) => GFromSum c (C1 x slots) where
+instance (GFromSumSlots c slots) => GFromSum c (C1 x slots) where
   gFromSum (Branch fieldName) renderBranch renderSlot (M1 slots) =
     renderBranch fieldName (gFromSumSlots @c renderSlot slots)
 
