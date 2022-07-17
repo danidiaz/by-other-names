@@ -42,7 +42,7 @@ module ByOtherNames
     Rubric (..),
     -- * Generic helpers
     GSum (..),
-    SlotResult (..),
+    Slot (..),
     GRecord (..),
     -- * Re-exports
     Symbol,
@@ -282,7 +282,7 @@ instance (GRecord c left, GRecord c right) =>
 
 --
 --
-data SlotResult m1 m2 v =
+data Slot m1 m2 v =
         ZeroSlots v
       | SingleSlot (m1 v)
       | ManySlots (m2 v)
@@ -291,7 +291,7 @@ data SlotResult m1 m2 v =
 class GSum (c :: Type -> Constraint) rep where
   gToSum :: (Functor n, Applicative m1, Applicative m2) =>
     Aliases rep a ->
-    (forall b . a -> SlotResult m1 m2 b -> n b) ->
+    (forall b . a -> Slot m1 m2 b -> n b) ->
     (forall v . c v => m1 v) ->
     (forall v . c v => m2 v) ->
     [n (rep z)]
