@@ -90,7 +90,7 @@ There are limitations on sum types though:
 
 - For sum types, only the "object with a single key consisting in the branch tag" style of serialization is supported.
 
-## How to use by-other-names:th?
+## How to use the quasiquoter?
 
 That library provides a module 'ByOtherNames.TH' which exports the 'aliasList'
 quasiquoter:
@@ -113,4 +113,18 @@ quasiquoter:
       |]
 
 The trailing comma is optional.
+
+## other packages
+
+- [generics-sop]()
+
+- [barbies](https://hackage.haskell.org/package/barbies)
+
+- [higgledy](https://hackage.haskell.org/package/higgledy)
+
+- [generic-data-surgery](https://hackage.haskell.org/package/generic-data-surgery)
+
+- [one-liner](https://hackage.haskell.org/package/one-liner)
+
+
 

@@ -289,7 +289,7 @@ data Slot m1 m2 v =
       deriving stock (Show, Functor)
 
 class GSum (c :: Type -> Constraint) rep where
-  gToSum :: (Functor n, Applicative m1, Applicative m2) =>
+  gToSum :: (Functor n, Applicative m2) =>
     Aliases rep a ->
     (forall b . a -> Slot m1 m2 b -> n b) ->
     (forall v . c v => m1 v) ->
