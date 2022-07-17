@@ -302,9 +302,8 @@ class GSum (c :: Type -> Constraint) rep where
     (a, [o])
   gSumEnum ::
     Aliases rep a ->
-    (a -> [o] -> r) ->
     (forall v. c v => Proxy v -> o) ->
-    [r]
+    [(a, [o])]
 
 instance
   (GSum c (left :+: right)) =>
@@ -312,7 +311,7 @@ instance
   where
   gToSum (Sum s) parseBranch parseSlot1 parseSlot2 = fmap M1 <$> gToSum @c s parseBranch parseSlot1 parseSlot2
   gFromSum (Sum s) renderSlot (M1 srep) = gFromSum @c s renderSlot srep
-  gSumEnum (Sum s) renderBranch renderSlot = gSumEnum @c @_ @_ @_ s renderBranch renderSlot
+  gSumEnum (Sum s) renderSlot = gSumEnum @c @_ @_ @_ s renderSlot
 
 instance
   ( GSum c left,
@@ -325,8 +324,8 @@ instance
   gFromSum (BranchTree aleft aright) renderSlot = \case
     L1 rleft -> gFromSum @c aleft renderSlot rleft
     R1 rright -> gFromSum @c aright renderSlot rright
-  gSumEnum (BranchTree aleft aright) renderBranch renderSlot = 
-    gSumEnum @c aleft renderBranch renderSlot ++ gSumEnum @c aright renderBranch renderSlot
+  gSumEnum (BranchTree aleft aright) renderSlot = 
+    gSumEnum @c aleft renderSlot ++ gSumEnum @c aright renderSlot
 
 
 instance GSum c (C1 x U1) where
@@ -334,24 +333,24 @@ instance GSum c (C1 x U1) where
     [parseBranch fieldName (ZeroSlots (M1 U1))]
   gFromSum (Branch fieldName) renderSlot _ =
     (fieldName, [])
-  gSumEnum (Branch fieldName) renderBranch renderSlot = 
-    [renderBranch fieldName []]
+  gSumEnum (Branch fieldName) renderSlot = 
+    [(fieldName,[])]
 
 instance (c v) => GSum c (C1 x (S1 y (Rec0 v))) where
   gToSum (Branch fieldName) parseBranch parseSlot1 parseSlot2 =
     [M1 . M1. K1 <$> parseBranch fieldName (SingleSlot parseSlot1)]
   gFromSum (Branch fieldName) renderSlot (M1 (M1 (K1 slots))) =
     (fieldName, [ renderSlot slots ])
-  gSumEnum (Branch fieldName) renderBranch renderSlot = 
-    [renderBranch fieldName [ renderSlot (Proxy @v) ]]
+  gSumEnum (Branch fieldName) renderSlot = 
+    [(fieldName, [ renderSlot (Proxy @v) ])]
 
 instance (GSumSlots c (left :*: right)) => GSum c (C1 x (left :*: right)) where
   gToSum (Branch fieldName) parseBranch parseSlot1 parseSlot2 =
     [M1 <$> parseBranch fieldName (ManySlots (gToSumSlots @c parseSlot2))]
   gFromSum (Branch fieldName) renderSlot (M1 slots) =
     (fieldName, gFromSumSlots @c renderSlot slots)
-  gSumEnum (Branch fieldName) renderBranch renderSlot = 
-    [renderBranch fieldName (gSumEnumSlots @c @(left :*: right) renderSlot)]
+  gSumEnum (Branch fieldName) renderSlot = 
+    [(fieldName, gSumEnumSlots @c @(left :*: right) renderSlot)]
 
 
 class GSumSlots (c :: Type -> Constraint) rep where

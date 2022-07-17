@@ -12,6 +12,7 @@
 
 module Main where
 
+import ByOtherNames
 import ByOtherNames.Aeson
   ( Aliased,
     JSONRecord (..),
@@ -26,12 +27,11 @@ import ByOtherNames.TH
 import Control.Monad (forM)
 import Data.Aeson
 import Data.Aeson.Types
+import Data.Typeable
 import GHC.Generics
 import GHC.TypeLits
 import Test.Tasty
 import Test.Tasty.HUnit
-import Data.Typeable
-import ByOtherNames 
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -47,25 +47,27 @@ instance Aliased JSON Foo where
       . alias @"ee" "eex"
       $ aliasListEnd
 
-enumFoo :: [(Key,TypeRep)]
-enumFoo = gRecordEnum @Typeable @(Rep Foo)
-    (aliasListBegin
-      . alias @"aa" "aax"
-      . alias @"bb" "bbx"
-      . alias @"cc" "ccx"
-      . alias @"dd" "ddx"
-      . alias @"ee" "eex"
-      $ aliasListEnd)
+enumFoo :: [(Key, TypeRep)]
+enumFoo =
+  gRecordEnum @Typeable @(Rep Foo)
+    ( aliasListBegin
+        . alias @"aa" "aax"
+        . alias @"bb" "bbx"
+        . alias @"cc" "ccx"
+        . alias @"dd" "ddx"
+        . alias @"ee" "eex"
+        $ aliasListEnd
+    )
     (\a proxy -> (a, typeRep proxy))
 
-expectedEnumFoo :: [(Key,TypeRep)]
+expectedEnumFoo :: [(Key, TypeRep)]
 expectedEnumFoo =
- [("aax",typeRep (Proxy @Int)),
-  ("bbx",typeRep (Proxy @Bool)),
-  ("ccx",typeRep (Proxy @Char)),
-  ("ddx",typeRep (Proxy @String)),
-  ("eex",typeRep (Proxy @Int))]
-
+  [ ("aax", typeRep (Proxy @Int)),
+    ("bbx", typeRep (Proxy @Bool)),
+    ("ccx", typeRep (Proxy @Char)),
+    ("ddx", typeRep (Proxy @String)),
+    ("eex", typeRep (Proxy @Int))
+  ]
 
 data FooTH = FooTH {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -101,26 +103,29 @@ instance Aliased JSON Summy where
       . alias @"Ee" "Eex"
       $ aliasListEnd
 
- 
-enumSummy :: [(Key,[TypeRep])]
-enumSummy = gSumEnum @Typeable @(Rep Summy)
-    (aliasListBegin
-      . alias @"Aa" "Aax"
-      . alias @"Bb" "Bbx"
-      . alias @"Cc" "Ccx"
-      . alias @"Dd" "Ddx"
-      . alias @"Ee" "Eex"
-      $ aliasListEnd)
-    (,)
-    (typeRep)
+enumSummy :: [(Key, [TypeRep])]
+enumSummy =
+  gSumEnum @Typeable @(Rep Summy)
+    ( aliasListBegin
+        . alias @"Aa" "Aax"
+        . alias @"Bb" "Bbx"
+        . alias @"Cc" "Ccx"
+        . alias @"Dd" "Ddx"
+        . alias @"Ee" "Eex"
+        $ aliasListEnd
+    )
+    typeRep
 
-expectedEnumSummy :: [(Key,[TypeRep])]
+expectedEnumSummy :: [(Key, [TypeRep])]
 expectedEnumSummy =
- [("Aax",[typeRep (Proxy @Int)]),("Bbx",[typeRep (Proxy @Bool)]),
-  ("Ccx",[]),("Ddx",[typeRep (Proxy @Char),typeRep (Proxy @Bool),typeRep (Proxy @Int)]),("Eex",[typeRep (Proxy @Int)])]
+  [ ("Aax", [typeRep (Proxy @Int)]),
+    ("Bbx", [typeRep (Proxy @Bool)]),
+    ("Ccx", []),
+    ("Ddx", [typeRep (Proxy @Char), typeRep (Proxy @Bool), typeRep (Proxy @Int)]),
+    ("Eex", [typeRep (Proxy @Int)])
+  ]
 
 -- >>> enumSummy
-
 
 roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO ()
 roundtrip t =
@@ -170,8 +175,7 @@ tests =
         ],
       testGroup
         "enums"
-        [ 
-          testCase "prod typeReps" $ assertEqual "prod typeReps match" expectedEnumFoo enumFoo
-        , testCase "sum typeReps" $ assertEqual "sum typeReps match" expectedEnumSummy enumSummy
+        [ testCase "prod typeReps" $ assertEqual "prod typeReps match" expectedEnumFoo enumFoo,
+          testCase "sum typeReps" $ assertEqual "sum typeReps match" expectedEnumSummy enumSummy
         ]
     ]
