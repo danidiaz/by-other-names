@@ -64,7 +64,7 @@ import Control.Applicative
 --   Note that the type of the aliases is polymorphic; it depends on the
 --   'Rubric'.
 type Aliases :: (Type -> Type) -> Type -> Type
-data Aliases a rep where
+data Aliases rep a where
   Field :: KnownSymbol fieldName => a -> Aliases (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a
   Branch :: KnownSymbol branchName => a -> Aliases (C1 ('MetaCons branchName fixity sels) v) a
   FieldTree ::
