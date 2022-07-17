@@ -14,6 +14,8 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE LambdaCase #-}
 
 -- | A 'Rubric' for JSON serialization using Aeson, along with some helper
 -- newtypes and re-exports.
@@ -103,6 +105,7 @@ import Data.Kind
 import GHC.Generics
 import GHC.TypeLits
 import Data.Proxy
+import Data.Foldable
 
 -- | Aliases for JSON serialization fall under this 'Rubric'.
 -- The constructor 'JSON' is used as a type, with DataKinds.
@@ -128,69 +131,58 @@ newtype JSONSum s r = JSONSum r
 
 --
 --
-
-type BranchesFromJSON :: (Type -> Type) -> Constraint
-class BranchesFromJSON t where
-  branchParser :: Aliases t Key -> Object -> Parser (t x)
-
-instance BranchesFromJSON (C1 x U1) where
-  branchParser (Branch fieldName) = \o ->
-    do
-      (_ :: Value) <- o .: fieldName
-      pure $ M1 U1
-
-instance FromJSON v => BranchesFromJSON (C1 x (S1 y (Rec0 v))) where
-  branchParser (Branch fieldName) = \o ->
-    do
-      value <- o .: fieldName
-      M1 . M1 . K1 <$> parseJSON value
-
-instance ToProductInBranch (left :*: right) => BranchesFromJSON (C1 x (left :*: right)) where
-  branchParser (Branch fieldName) = \o ->
-    do
-      valueList <- o .: fieldName
-      (prod, _) <- fromValueList valueList
-      pure (M1 prod)
-
-instance (BranchesFromJSON left, BranchesFromJSON right) => BranchesFromJSON (left :+: right) where
-  branchParser (BranchTree left right) = \o ->
-    (L1 <$> branchParser left o) <|> (R1 <$> branchParser right o)
-
-instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (left :+: right), BranchesFromJSON (left :+: right)) => FromJSON (JSONSum s r) where
+instance (KnownSymbol s, Aliased JSON r, GFromSum FromJSON (Rep r)) => FromJSON (JSONSum s r) where
   parseJSON v =
-    let Sum branches = aliases @JSONRubric @JSON @r
-     in JSONSum . to . M1 <$> withObject (symbolVal (Proxy @s)) (branchParser branches) v
+    let parsers = gToSum @FromJSON (aliases @JSONRubric @JSON @r) 
+          (\a -> \case 
+              ZeroSlots v -> BranchParser \o -> do
+                Null :: Value <- o .: a
+                pure v
+              SingleSlot p -> BranchParser \o -> do
+                value <- o .: a
+                runProductInBranchParser1 p value
+              ManySlots p -> BranchParser \o -> do
+                valueList <- o .: a
+                (prod, _) <- runProductInBranchParser p valueList
+                pure prod
+            ) 
+          (ProductInBranchParser1 parseJSON) 
+          (ProductInBranchParser \case 
+            [] -> parseFail "not enough field values for branch"
+            v : vs -> do
+              r <- parseJSON v
+              pure (r, vs))
+        parserForObject o = asum $ map (($ o) . runBranchParser) parsers
+     in JSONSum . to <$> withObject (symbolVal (Proxy @s)) parserForObject v
+newtype BranchParser v = BranchParser { runBranchParser :: Object -> Parser v}
+  deriving stock Functor
+
+newtype ProductInBranchParser1 v = ProductInBranchParser1 { runProductInBranchParser1 :: Value -> Parser v }
+  deriving stock Functor
+  deriving Applicative via (Compose ((->) Value) Parser)
+
+newtype ProductInBranchParser v = ProductInBranchParser { runProductInBranchParser :: [Value] -> Parser (v, [Value]) }
+  deriving stock Functor
+
+instance Applicative ProductInBranchParser where
+  pure v = ProductInBranchParser \vs -> pure (v, vs)
+  ProductInBranchParser left <*> ProductInBranchParser right =
+    ProductInBranchParser \vs0 -> do
+      (f, vs1) <- left vs0
+      (x, vs2) <- right vs1
+      pure (f x, vs2)
+
 
 --
 --
-type ToProductInBranch :: (Type -> Type) -> Constraint
-class ToProductInBranch x where
-  fromValueList :: [Value] -> Parser (x z, [Value])
-
-instance FromJSON r => ToProductInBranch (S1 x (Rec0 r)) where
-  fromValueList vs = case vs of
-    [] -> parseFail "not enough field values for branch"
-    v : vs -> do
-      r <- parseJSON v
-      pure (M1 (K1 r), vs)
-
-instance (ToProductInBranch left, ToProductInBranch right) => ToProductInBranch (left :*: right) where
-  fromValueList vs0 = do
-    (left, vs1) <- fromValueList vs0
-    (right, vs2) <- fromValueList vs1
-    pure (left :*: right, vs2)
-
---
---
-newtype FieldParser a = FieldParser (Object -> Parser a)
-  deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
-
 instance (KnownSymbol s, Aliased JSON r, GFromProduct FromJSON (Rep r)) => FromJSON (JSONRecord s r) where
   parseJSON v =
     let FieldParser parser = gToProduct @FromJSON (aliases @JSONRubric @JSON @r) 
           (\fieldName -> FieldParser (\o ->explicitParseField parseJSON o fieldName))
         objectName = symbolVal (Proxy @s)
      in JSONRecord . to <$> withObject objectName parser v
+newtype FieldParser a = FieldParser (Object -> Parser a)
+  deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
 
 
 --

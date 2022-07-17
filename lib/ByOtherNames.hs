@@ -20,6 +20,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 
 -- | This package provides the general mechanism for defining field and branch
@@ -41,6 +42,7 @@ module ByOtherNames
     Rubric (..),
     -- * Generic helpers
     GFromSum (..),
+    SlotResult (..),
     GFromProduct (..),
     -- * Re-exports
     Symbol,
@@ -280,12 +282,19 @@ instance (GFromProduct c left, GFromProduct c right) =>
 
 --
 --
+data SlotResult m1 m2 v =
+        ZeroSlots v
+      | SingleSlot (m1 v)
+      | ManySlots (m2 v)
+      deriving stock (Show, Functor)
+
 class GFromSum (c :: Type -> Constraint) rep where
-  gToSum :: (Applicative m, Alternative n) =>
+  gToSum :: (Functor n, Applicative m1, Applicative m2) =>
     Aliases rep a ->
-    (forall b . a -> m b -> n b) ->
-    (forall v . c v => m v) ->
-    n (rep z)
+    (forall b . a -> SlotResult m1 m2 b -> n b) ->
+    (forall v . c v => m1 v) ->
+    (forall v . c v => m2 v) ->
+    [n (rep z)]
   gFromSum ::
     Aliases rep a ->
     (a -> [o] -> r) ->
@@ -302,7 +311,7 @@ instance
   (GFromSum c (left :+: right)) =>
   GFromSum c (D1 x (left :+: right))
   where
-  gToSum (Sum s) parseBranch parseSlot = M1 <$> gToSum @c s parseBranch parseSlot
+  gToSum (Sum s) parseBranch parseSlot1 parseSlot2 = fmap M1 <$> gToSum @c s parseBranch parseSlot1 parseSlot2
   gFromSum (Sum s) renderBranch renderSlot (M1 srep) = gFromSum @c s renderBranch renderSlot srep
   gSumEnum (Sum s) renderBranch renderSlot = gSumEnum @c @_ @_ @_ s renderBranch renderSlot
 
@@ -312,8 +321,8 @@ instance
   ) =>
   GFromSum c (left :+: right)
   where
-  gToSum (BranchTree aleft aright) parseBranch parseSlot =
-    (L1 <$> gToSum @c @left aleft parseBranch parseSlot) <|> (R1 <$> gToSum @c @right aright parseBranch parseSlot)
+  gToSum (BranchTree aleft aright) parseBranch parseSlot1 parseSlot2 =
+    (fmap L1 <$> gToSum @c @left aleft parseBranch parseSlot1 parseSlot2) ++ (fmap R1 <$> gToSum @c @right aright parseBranch parseSlot1 parseSlot2)
   gFromSum (BranchTree aleft aright) renderBranch renderSlot = \case
     L1 rleft -> gFromSum @c aleft renderBranch renderSlot rleft
     R1 rright -> gFromSum @c aright renderBranch renderSlot rright
@@ -321,13 +330,30 @@ instance
     gSumEnum @c aleft renderBranch renderSlot ++ gSumEnum @c aright renderBranch renderSlot
 
 
-instance (GFromSumSlots c slots) => GFromSum c (C1 x slots) where
-  gToSum (Branch fieldName) parseBranch parseSlot =
-    M1 <$> parseBranch fieldName (gToSumSlots @c parseSlot)
+instance GFromSum c (C1 x U1) where
+  gToSum (Branch fieldName) parseBranch parseSlot1 parseSlot2 =
+    [parseBranch fieldName (ZeroSlots (M1 U1))]
+  gFromSum (Branch fieldName) renderBranch renderSlot _ =
+    renderBranch fieldName []
+  gSumEnum (Branch fieldName) renderBranch renderSlot = 
+    [renderBranch fieldName []]
+
+instance (c v) => GFromSum c (C1 x (S1 y (Rec0 v))) where
+  gToSum (Branch fieldName) parseBranch parseSlot1 parseSlot2 =
+    [M1 . M1. K1 <$> parseBranch fieldName (SingleSlot parseSlot1)]
+  gFromSum (Branch fieldName) renderBranch renderSlot (M1 (M1 (K1 slots))) =
+    renderBranch fieldName [ renderSlot slots ]
+  gSumEnum (Branch fieldName) renderBranch renderSlot = 
+    [renderBranch fieldName [ renderSlot (Proxy @v) ]]
+
+instance (GFromSumSlots c (left :*: right)) => GFromSum c (C1 x (left :*: right)) where
+  gToSum (Branch fieldName) parseBranch parseSlot1 parseSlot2 =
+    [M1 <$> parseBranch fieldName (ManySlots (gToSumSlots @c parseSlot2))]
   gFromSum (Branch fieldName) renderBranch renderSlot (M1 slots) =
     renderBranch fieldName (gFromSumSlots @c renderSlot slots)
   gSumEnum (Branch fieldName) renderBranch renderSlot = 
-    [renderBranch fieldName (gSumEnumSlots @c @slots renderSlot)]
+    [renderBranch fieldName (gSumEnumSlots @c @(left :*: right) renderSlot)]
+
 
 class GFromSumSlots (c :: Type -> Constraint) rep where
   gToSumSlots :: Applicative m =>
@@ -335,11 +361,6 @@ class GFromSumSlots (c :: Type -> Constraint) rep where
     m (rep z)
   gFromSumSlots :: (forall v. c v => v -> o) -> rep z -> [o]
   gSumEnumSlots :: (forall v. c v => Proxy v -> o) -> [o]
-
-instance GFromSumSlots c U1 where
-  gToSumSlots _ = pure U1
-  gFromSumSlots _ _ = []
-  gSumEnumSlots _ = []
 
 instance c v => GFromSumSlots c (S1 y (Rec0 v)) where
   gToSumSlots parseSlot = M1 . K1 <$> parseSlot
