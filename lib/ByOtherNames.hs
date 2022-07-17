@@ -54,48 +54,75 @@ import GHC.TypeLits
 --
 --   Note that the type of the aliases is polymorphic; it depends on the
 --   'Rubric'.
-type Aliases :: Type -> (Type -> Type) -> Type
+type Aliases :: (Type -> Type) -> Type -> Type
 data Aliases a rep where
-  Field :: a -> Aliases a (S1 metasel v)
-  Branch :: a -> Aliases a (C1 metacons v)
+  Field :: a -> Aliases (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a
+  Branch :: a -> Aliases (C1 ('MetaCons branchName fixity sels) v) a
   FieldTree ::
-    Aliases a left ->
-    Aliases a right ->
-    Aliases a (left :*: right)
+    Aliases left a ->
+    Aliases right a ->
+    Aliases (left :*: right) a
   BranchTree ::
-    Aliases a left ->
-    Aliases a right ->
-    Aliases a (left :+: right)
+    Aliases left a ->
+    Aliases right a ->
+    Aliases (left :+: right) a
   -- | We force the sum to contain at least two branches.
   Sum ::
-    Aliases a (left :+: right) ->
-    Aliases a (D1 x (left :+: right))
+    Aliases (left :+: right) a ->
+    Aliases (D1 x (left :+: right)) a
   Record ::
-    Aliases a fields ->
-    Aliases a (D1 x (C1 y fields))
+    Aliases fields a ->
+    Aliases (D1 x (C1 y fields)) a
+
+instance Functor (Aliases rep) where
+  fmap f as = case as of 
+    Field a -> Field (f a)
+    Branch a -> Branch (f a)
+    FieldTree left right -> FieldTree (fmap f left) (fmap f right)
+    BranchTree left right -> BranchTree (fmap f left) (fmap f right)
+    Sum a -> Sum (fmap f a)
+    Record a -> Record (fmap f a)
+
+instance Foldable (Aliases rep) where
+    foldMap f as = case as of
+      Field a -> f a
+      Branch a -> f a
+      FieldTree left right -> foldMap f left <> foldMap f right
+      BranchTree left right -> foldMap f left <> foldMap f right
+      Sum a -> foldMap f a
+      Record a -> foldMap f a
+
+instance Traversable (Aliases rep) where
+  traverse f as = case as of 
+      Field a -> Field <$> f a
+      Branch a -> Branch <$> f a
+      FieldTree left right -> FieldTree <$> traverse f left <*> traverse f right
+      BranchTree left right -> BranchTree  <$> traverse f left <*> traverse f right
+      Sum a -> Sum <$> traverse f a
+      Record a -> Record <$> traverse f a
 
 -- | An intermediate datatype that makes it easier to specify the aliases.  See
 -- 'aliasListBegin', 'alias' and 'aliasListEnd'.
-type AliasList :: Type -> [Symbol] -> Type
-data AliasList a names where
-  Null :: AliasList a '[]
-  Cons :: Proxy name -> a -> AliasList a names -> AliasList a (name : names)
+type AliasList :: [Symbol] -> Type -> Type
+data AliasList names a where
+  Null :: AliasList '[] a
+  Cons :: Proxy name -> a -> AliasList names a -> AliasList (name : names) a
 
 -- | Add an alias to an `AliasList`.
 -- __/TYPE APPLICATION REQUIRED!/__ You must provide the field/branch name using a type application.
-alias :: forall name a names. a -> AliasList a names -> AliasList a (name : names)
+alias :: forall name a names. a -> AliasList names a -> AliasList (name : names) a
 alias = Cons (Proxy @name)
 
 -- | Define the aliases for a type by listing them.
 --
 -- See also 'alias' and 'aliasListEnd'.
-aliasListBegin :: forall before a tree. (AliasTree before tree '[]) => AliasList a before -> Aliases a tree
+aliasListBegin :: forall before a tree. (AliasTree before tree '[]) => AliasList before a -> Aliases tree a
 aliasListBegin names =
   let (aliases, Null) = parseAliasTree @before @tree names
    in aliases
 
 -- | The empty `AliasList`.
-aliasListEnd :: AliasList a '[]
+aliasListEnd :: AliasList '[] a
 aliasListEnd = Null
 
 type AssertNamesAreEqual :: Symbol -> Symbol -> Constraint
@@ -129,7 +156,7 @@ type AliasTree :: [Symbol] -> (Type -> Type) -> [Symbol] -> Constraint
 -- we don't want that because it would allow us to omit the field name
 -- annotation when giving the aliases. We *don't* want inference there!
 class AliasTree before rep after | before rep -> after where
-  parseAliasTree :: AliasList a before -> (Aliases a rep, AliasList a after)
+  parseAliasTree :: AliasList before a -> (Aliases rep a, AliasList after a)
 
 --
 instance AssertNamesAreEqual name name' => AliasTree (name : names) (S1 ('MetaSel (Just name') x y z) v) names where
@@ -174,7 +201,7 @@ instance AliasTree before (left :+: right) '[] => AliasTree before (D1 x (left :
 -- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
-  aliases :: Aliases (AliasType k) (Rep r)
+  aliases :: Aliases (Rep r) (AliasType k) 
 
 -- | Typeclass for marker datakinds used as rubrics, to classify aliases.
 --
@@ -188,12 +215,12 @@ class Rubric k where
 --
 class GFromProduct (c :: Type -> Constraint) rep where
   gFromProduct ::
-    Aliases a rep ->
+    Aliases rep a ->
     (forall v. c v => a -> v -> o) ->
     rep z ->
     [o]
   gProductEnum :: 
-    Aliases a rep ->
+    Aliases rep a ->
     (forall v. c v => a -> Proxy v -> o) ->
     [o]
 
@@ -217,13 +244,13 @@ instance (GFromProduct c left, GFromProduct c right) =>
 --
 class GFromSum (c :: Type -> Constraint) rep where
   gFromSum ::
-    Aliases a rep ->
+    Aliases rep a ->
     (a -> [o] -> r) ->
     (forall v. c v => v -> o) ->
     rep z ->
     r
   gSumEnum ::
-    Aliases a rep ->
+    Aliases rep a ->
     (a -> [o] -> r) ->
     (forall v. c v => Proxy v -> o) ->
     [r]

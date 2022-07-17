@@ -133,7 +133,7 @@ newtype FieldParser a = FieldParser (Object -> Parser a)
 
 type FieldsFromJSON :: (Type -> Type) -> Constraint
 class FieldsFromJSON t where
-  fieldParser :: Aliases Key t -> FieldParser (t x)
+  fieldParser :: Aliases t Key -> FieldParser (t x)
 
 instance FromJSON v => FieldsFromJSON (S1 x (Rec0 v)) where
   fieldParser (Field fieldName) = FieldParser \o -> M1 . K1 <$> explicitParseField parseJSON o fieldName
@@ -154,7 +154,7 @@ instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsFromJSO
 
 type BranchesFromJSON :: (Type -> Type) -> Constraint
 class BranchesFromJSON t where
-  branchParser :: Aliases Key t -> Object -> Parser (t x)
+  branchParser :: Aliases t Key -> Object -> Parser (t x)
 
 instance BranchesFromJSON (C1 x U1) where
   branchParser (Branch fieldName) = \o ->
