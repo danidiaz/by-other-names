@@ -26,6 +26,7 @@ library
                        aeson                >= 2.1.0.0,
                        text                 >= 1.2.3.0,
                        template-haskell     >= 2.16.0.0,
+                       indexed-traversable  >= 0.1.2
   hs-source-dirs:      lib
   -- https://downloads.haskell.org/ghc/latest/docs/html/users_guide/using-warnings.html
   ghc-options: -W

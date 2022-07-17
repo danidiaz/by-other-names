@@ -48,6 +48,9 @@ import Data.Kind
 import Data.Proxy
 import GHC.Generics
 import GHC.TypeLits
+import Data.Functor.WithIndex
+import Data.Foldable.WithIndex
+import Data.Traversable.WithIndex
 
 -- | This datatype carries the field aliases and matches the structure of the
 --   generic Rep' shape.
@@ -56,8 +59,8 @@ import GHC.TypeLits
 --   'Rubric'.
 type Aliases :: (Type -> Type) -> Type -> Type
 data Aliases a rep where
-  Field :: a -> Aliases (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a
-  Branch :: a -> Aliases (C1 ('MetaCons branchName fixity sels) v) a
+  Field :: KnownSymbol fieldName => a -> Aliases (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a
+  Branch :: KnownSymbol branchName => a -> Aliases (C1 ('MetaCons branchName fixity sels) v) a
   FieldTree ::
     Aliases left a ->
     Aliases right a ->
@@ -82,6 +85,22 @@ instance Functor (Aliases rep) where
     BranchTree left right -> BranchTree (fmap f left) (fmap f right)
     Sum a -> Sum (fmap f a)
     Record a -> Record (fmap f a)
+
+instance FunctorWithIndex String (Aliases rep) where
+  imap f as = case as of 
+    afield@(Field a) -> Field (mapField f afield a)
+    abranch@(Branch a) -> Branch (mapBranch f abranch a)
+    FieldTree left right -> FieldTree (imap f left) (imap f right)
+    BranchTree left right -> BranchTree (imap f left) (imap f right)
+    Sum a -> Sum (imap f a)
+    Record a -> Record (imap f a)
+    where
+      mapField :: forall fieldName a b v proxy unpackedness strictness laziness. KnownSymbol fieldName => (String -> a -> b) -> proxy (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a -> a -> b
+      mapField f _ a = let fieldName = symbolVal (Proxy @fieldName)
+        in f fieldName a
+      mapBranch :: forall branchName a b v proxy fixity sels. KnownSymbol branchName => (String -> a -> b) -> proxy (C1 ('MetaCons branchName fixity sels) v) a -> a -> b
+      mapBranch f _ a = let branchName = symbolVal (Proxy @branchName)
+        in f branchName a
 
 instance Foldable (Aliases rep) where
     foldMap f as = case as of
@@ -159,7 +178,7 @@ class AliasTree before rep after | before rep -> after where
   parseAliasTree :: AliasList before a -> (Aliases rep a, AliasList after a)
 
 --
-instance AssertNamesAreEqual name name' => AliasTree (name : names) (S1 ('MetaSel (Just name') x y z) v) names where
+instance (AssertNamesAreEqual name name', KnownSymbol name') => AliasTree (name : names) (S1 ('MetaSel (Just name') x y z) v) names where
   parseAliasTree (Cons _ a rest) = (Field a, rest)
 
 instance MissingAlias name' => AliasTree '[] (S1 ('MetaSel (Just name') x y z) v) '[]
@@ -179,7 +198,7 @@ instance AliasTree before tree '[] => AliasTree before (D1 x (C1 y tree)) '[] wh
 -- instance ExcessAliasError name => AliasTree before (D1 x (C1 y tree)) (name : names) where
 
 --
-instance AssertNamesAreEqual name name' => AliasTree (name : names) (C1 ('MetaCons name' fixity False) slots) names where
+instance (AssertNamesAreEqual name name', KnownSymbol name') => AliasTree (name : names) (C1 ('MetaCons name' fixity False) slots) names where
   parseAliasTree (Cons _ a rest) = (Branch a, rest)
 
 instance MissingAlias name' => AliasTree '[] (C1 ('MetaCons name' fixity False) slots) '[]
