@@ -2,6 +2,8 @@
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
@@ -17,6 +19,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 
 -- | This package provides the general mechanism for defining field and branch
@@ -86,22 +89,6 @@ instance Functor (Aliases rep) where
     Sum a -> Sum (fmap f a)
     Record a -> Record (fmap f a)
 
-instance FunctorWithIndex String (Aliases rep) where
-  imap f as = case as of 
-    afield@(Field a) -> Field (mapField f afield a)
-    abranch@(Branch a) -> Branch (mapBranch f abranch a)
-    FieldTree left right -> FieldTree (imap f left) (imap f right)
-    BranchTree left right -> BranchTree (imap f left) (imap f right)
-    Sum a -> Sum (imap f a)
-    Record a -> Record (imap f a)
-    where
-      mapField :: forall fieldName a b v proxy unpackedness strictness laziness. KnownSymbol fieldName => (String -> a -> b) -> proxy (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a -> a -> b
-      mapField f _ a = let fieldName = symbolVal (Proxy @fieldName)
-        in f fieldName a
-      mapBranch :: forall branchName a b v proxy fixity sels. KnownSymbol branchName => (String -> a -> b) -> proxy (C1 ('MetaCons branchName fixity sels) v) a -> a -> b
-      mapBranch f _ a = let branchName = symbolVal (Proxy @branchName)
-        in f branchName a
-
 instance Foldable (Aliases rep) where
     foldMap f as = case as of
       Field a -> f a
@@ -120,6 +107,26 @@ instance Traversable (Aliases rep) where
       Sum a -> Sum <$> traverse f a
       Record a -> Record <$> traverse f a
 
+deriving anyclass instance (FunctorWithIndex String (Aliases rep))
+
+deriving anyclass instance (FoldableWithIndex String (Aliases rep))
+
+instance TraversableWithIndex String (Aliases rep) where
+  itraverse f as = case as of 
+    afield@(Field a) -> Field <$> traverseField f afield a
+    abranch@(Branch a) -> Branch <$> traverseBranch f abranch a
+    FieldTree left right -> FieldTree <$> itraverse f left <*> itraverse f right
+    BranchTree left right -> BranchTree <$> itraverse f left <*> itraverse f right
+    Sum a -> Sum <$> itraverse f a
+    Record a -> Record <$> itraverse f a
+    where
+      traverseField :: forall fieldName a m b v proxy unpackedness strictness laziness. KnownSymbol fieldName => (String -> a -> m b) -> proxy (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a -> a -> m b
+      traverseField f _ a = let fieldName = symbolVal (Proxy @fieldName)
+        in f fieldName a
+      traverseBranch :: forall branchName a m b v proxy fixity sels. KnownSymbol branchName => (String -> a -> m b) -> proxy (C1 ('MetaCons branchName fixity sels) v) a -> a -> m b
+      traverseBranch f _ a = let branchName = symbolVal (Proxy @branchName)
+        in f branchName a
+
 -- | An intermediate datatype that makes it easier to specify the aliases.  See
 -- 'aliasListBegin', 'alias' and 'aliasListEnd'.
 type AliasList :: [Symbol] -> Type -> Type
@@ -128,6 +135,7 @@ data AliasList names a where
   Cons :: Proxy name -> a -> AliasList names a -> AliasList (name : names) a
 
 -- | Add an alias to an `AliasList`.
+--
 -- __/TYPE APPLICATION REQUIRED!/__ You must provide the field/branch name using a type application.
 alias :: forall name a names. a -> AliasList names a -> AliasList (name : names) a
 alias = Cons (Proxy @name)
