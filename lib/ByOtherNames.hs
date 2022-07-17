@@ -241,6 +241,10 @@ class Rubric k where
 --
 --
 class GFromProduct (c :: Type -> Constraint) rep where
+  gToProduct :: Applicative m =>  
+    Aliases rep a ->
+    (forall v . c v => a -> m v) ->
+    m (rep z)
   gFromProduct ::
     Aliases rep a ->
     (forall v. c v => a -> v -> o) ->
@@ -252,16 +256,22 @@ class GFromProduct (c :: Type -> Constraint) rep where
     [o]
 
 instance GFromProduct c prod => GFromProduct c (D1 x (C1 y prod)) where
+  gToProduct (Record as) parseField =
+    M1 . M1 <$> gToProduct @c  as parseField
   gFromProduct (Record as) renderField (M1 (M1 prod)) = 
     gFromProduct @c as renderField prod
   gProductEnum (Record as) renderField = gProductEnum @c @prod as renderField
 
 instance c v => GFromProduct c (S1 x (Rec0 v)) where
+  gToProduct (Field a) parseField = 
+    M1 . K1 <$> parseField a
   gFromProduct (Field a) renderField (M1 (K1 v)) = [renderField a v]
   gProductEnum (Field a) renderField = [renderField a (Proxy @v)]
 
 instance (GFromProduct c left, GFromProduct c right) =>
   GFromProduct c (left :*: right) where
+  gToProduct (FieldTree aleft aright) parseField =
+    (:*:) <$> gToProduct @c aleft parseField <*> gToProduct @c aright parseField
   gFromProduct (FieldTree aleft aright) renderField (left :*: right) = 
     gFromProduct @c aleft renderField left  ++ gFromProduct @c aright renderField right
   gProductEnum (FieldTree aleft aright) renderField =

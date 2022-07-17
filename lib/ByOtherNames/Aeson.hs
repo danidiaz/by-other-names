@@ -128,29 +128,6 @@ newtype JSONSum s r = JSONSum r
 
 --
 --
-newtype FieldParser a = FieldParser (Object -> Parser a)
-  deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
-
-type FieldsFromJSON :: (Type -> Type) -> Constraint
-class FieldsFromJSON t where
-  fieldParser :: Aliases t Key -> FieldParser (t x)
-
-instance FromJSON v => FieldsFromJSON (S1 x (Rec0 v)) where
-  fieldParser (Field fieldName) = FieldParser \o -> M1 . K1 <$> explicitParseField parseJSON o fieldName
-
-instance (FieldsFromJSON left, FieldsFromJSON right) => FieldsFromJSON (left :*: right) where
-  fieldParser (FieldTree left right) =
-    (:*:) <$> fieldParser left <*> fieldParser right
-
-instance (KnownSymbol s, Aliased JSON r, Rep r ~ D1 x (C1 y prod), FieldsFromJSON prod) => FromJSON (JSONRecord s r) where
-  parseJSON v =
-    let Record prod = aliases @JSONRubric @JSON @r
-        FieldParser parser = fieldParser prod
-     in JSONRecord . to . M1 . M1 <$> withObject (symbolVal (Proxy @s)) parser v
-
-
---
---
 
 type BranchesFromJSON :: (Type -> Type) -> Constraint
 class BranchesFromJSON t where
@@ -202,6 +179,19 @@ instance (ToProductInBranch left, ToProductInBranch right) => ToProductInBranch 
     (left, vs1) <- fromValueList vs0
     (right, vs2) <- fromValueList vs1
     pure (left :*: right, vs2)
+
+--
+--
+newtype FieldParser a = FieldParser (Object -> Parser a)
+  deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
+
+instance (KnownSymbol s, Aliased JSON r, GFromProduct FromJSON (Rep r)) => FromJSON (JSONRecord s r) where
+  parseJSON v =
+    let FieldParser parser = gToProduct @FromJSON (aliases @JSONRubric @JSON @r) 
+          (\fieldName -> FieldParser (\o ->explicitParseField parseJSON o fieldName))
+        objectName = symbolVal (Proxy @s)
+     in JSONRecord . to <$> withObject objectName parser v
+
 
 --
 --
