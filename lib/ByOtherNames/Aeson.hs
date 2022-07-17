@@ -152,7 +152,7 @@ instance (KnownSymbol s, Aliased JSON r, GSum FromJSON (Rep r)) => FromJSON (JSO
             v : vs -> do
               r <- parseJSON v
               pure (r, vs))
-        parserForObject o = asum $ map (($ o) . runBranchParser) parsers
+        parserForObject o = asum $ fmap (($ o) . runBranchParser) parsers
      in JSONSum . to <$> withObject (symbolVal (Proxy @s)) parserForObject v
 newtype BranchParser v = BranchParser { runBranchParser :: Object -> Parser v}
   deriving stock Functor

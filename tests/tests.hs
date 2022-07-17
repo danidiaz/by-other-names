@@ -32,6 +32,7 @@ import GHC.Generics
 import GHC.TypeLits
 import Test.Tasty
 import Test.Tasty.HUnit
+import Data.Foldable
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -104,7 +105,7 @@ instance Aliased JSON Summy where
       $ aliasListEnd
 
 enumSummy :: [(Key, [TypeRep])]
-enumSummy =
+enumSummy = Data.Foldable.toList $
   gSumEnum @Typeable @(Rep Summy)
     ( aliasListBegin
         . alias @"Aa" "Aax"
