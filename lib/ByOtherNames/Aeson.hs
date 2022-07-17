@@ -131,7 +131,7 @@ newtype JSONSum s r = JSONSum r
 
 --
 --
-instance (KnownSymbol s, Aliased JSON r, GFromSum FromJSON (Rep r)) => FromJSON (JSONSum s r) where
+instance (KnownSymbol s, Aliased JSON r, GSum FromJSON (Rep r)) => FromJSON (JSONSum s r) where
   parseJSON v =
     let parsers = gToSum @FromJSON (aliases @JSONRubric @JSON @r) 
           (\a -> \case 
@@ -175,9 +175,9 @@ instance Applicative ProductInBranchParser where
 
 --
 --
-instance (KnownSymbol s, Aliased JSON r, GFromProduct FromJSON (Rep r)) => FromJSON (JSONRecord s r) where
+instance (KnownSymbol s, Aliased JSON r, GRecord FromJSON (Rep r)) => FromJSON (JSONRecord s r) where
   parseJSON v =
-    let FieldParser parser = gToProduct @FromJSON (aliases @JSONRubric @JSON @r) 
+    let FieldParser parser = gToRecord @FromJSON (aliases @JSONRubric @JSON @r) 
           (\fieldName -> FieldParser (\o ->explicitParseField parseJSON o fieldName))
         objectName = symbolVal (Proxy @s)
      in JSONRecord . to <$> withObject objectName parser v
@@ -187,7 +187,7 @@ newtype FieldParser a = FieldParser (Object -> Parser a)
 
 --
 --
-instance (Aliased JSON r, GFromSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
+instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
   toJSON (JSONSum o) =
     gFromSum @ToJSON @(Rep r) @Key @Value @Value (aliases @JSONRubric @JSON @r)
       (\key slots -> case slots of
@@ -197,6 +197,6 @@ instance (Aliased JSON r, GFromSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
 
 --
 --
-instance (Aliased JSON r, GFromProduct ToJSON (Rep r)) => ToJSON (JSONRecord s r) where
+instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord s r) where
   toJSON (JSONRecord o) =
-    object $ gFromProduct @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)
+    object $ gFromRecord @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)

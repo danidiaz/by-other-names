@@ -48,7 +48,7 @@ instance Aliased JSON Foo where
       $ aliasListEnd
 
 enumFoo :: [(Key,TypeRep)]
-enumFoo = gProductEnum @Typeable @(Rep Foo)
+enumFoo = gRecordEnum @Typeable @(Rep Foo)
     (aliasListBegin
       . alias @"aa" "aax"
       . alias @"bb" "bbx"
