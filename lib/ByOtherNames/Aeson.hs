@@ -189,11 +189,11 @@ newtype FieldParser a = FieldParser (Object -> Parser a)
 --
 instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
   toJSON (JSONSum o) =
-    gFromSum @ToJSON @(Rep r) @Key @Value @Value (aliases @JSONRubric @JSON @r)
-      (\key slots -> case slots of
-        [] -> object [(key, Null)]
-        [x] -> object [(key, toJSON x)]
-        xs -> object [(key, toJSON xs)]) toJSON (from @r o)
+    let (key, slots) = gFromSum @ToJSON @(Rep r) @Key @Value @Value (aliases @JSONRubric @JSON @r) toJSON (from @r o)
+     in case slots of
+          [] -> object [(key, Null)]
+          [x] -> object [(key, toJSON x)]
+          xs -> object [(key, toJSON xs)]
 
 --
 --
