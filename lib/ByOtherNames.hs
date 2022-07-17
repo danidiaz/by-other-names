@@ -54,6 +54,7 @@ import GHC.TypeLits
 import Data.Functor.WithIndex
 import Data.Foldable.WithIndex
 import Data.Traversable.WithIndex
+import Control.Applicative
 
 -- | This datatype carries the field aliases and matches the structure of the
 --   generic Rep' shape.
@@ -280,6 +281,11 @@ instance (GFromProduct c left, GFromProduct c right) =>
 --
 --
 class GFromSum (c :: Type -> Constraint) rep where
+  gToSum :: (Applicative m, Alternative n) =>
+    Aliases rep a ->
+    (forall b . a -> m b -> n b) ->
+    (forall v . c v => m v) ->
+    n (rep z)
   gFromSum ::
     Aliases rep a ->
     (a -> [o] -> r) ->
@@ -296,6 +302,7 @@ instance
   (GFromSum c (left :+: right)) =>
   GFromSum c (D1 x (left :+: right))
   where
+  gToSum (Sum s) parseBranch parseSlot = M1 <$> gToSum @c s parseBranch parseSlot
   gFromSum (Sum s) renderBranch renderSlot (M1 srep) = gFromSum @c s renderBranch renderSlot srep
   gSumEnum (Sum s) renderBranch renderSlot = gSumEnum @c @_ @_ @_ s renderBranch renderSlot
 
@@ -305,6 +312,8 @@ instance
   ) =>
   GFromSum c (left :+: right)
   where
+  gToSum (BranchTree aleft aright) parseBranch parseSlot =
+    (L1 <$> gToSum @c @left aleft parseBranch parseSlot) <|> (R1 <$> gToSum @c @right aright parseBranch parseSlot)
   gFromSum (BranchTree aleft aright) renderBranch renderSlot = \case
     L1 rleft -> gFromSum @c aleft renderBranch renderSlot rleft
     R1 rright -> gFromSum @c aright renderBranch renderSlot rright
@@ -313,20 +322,27 @@ instance
 
 
 instance (GFromSumSlots c slots) => GFromSum c (C1 x slots) where
+  gToSum (Branch fieldName) parseBranch parseSlot =
+    M1 <$> parseBranch fieldName (gToSumSlots @c parseSlot)
   gFromSum (Branch fieldName) renderBranch renderSlot (M1 slots) =
     renderBranch fieldName (gFromSumSlots @c renderSlot slots)
   gSumEnum (Branch fieldName) renderBranch renderSlot = 
     [renderBranch fieldName (gSumEnumSlots @c @slots renderSlot)]
 
 class GFromSumSlots (c :: Type -> Constraint) rep where
+  gToSumSlots :: Applicative m =>
+    (forall v . c v => m v) ->
+    m (rep z)
   gFromSumSlots :: (forall v. c v => v -> o) -> rep z -> [o]
   gSumEnumSlots :: (forall v. c v => Proxy v -> o) -> [o]
 
 instance GFromSumSlots c U1 where
+  gToSumSlots _ = pure U1
   gFromSumSlots _ _ = []
   gSumEnumSlots _ = []
 
 instance c v => GFromSumSlots c (S1 y (Rec0 v)) where
+  gToSumSlots parseSlot = M1 . K1 <$> parseSlot
   gFromSumSlots renderSlot (M1 (K1 v)) = [renderSlot v]
   gSumEnumSlots renderSlot = [renderSlot (Proxy @v)]
 
@@ -336,6 +352,8 @@ instance
   ) =>
   GFromSumSlots c (left :*: right)
   where
+  gToSumSlots parseSlot =   
+    (:*:) <$> gToSumSlots @c @left parseSlot <*> gToSumSlots @c @right parseSlot
   gFromSumSlots renderSlot (left :*: right) =
     gFromSumSlots @c renderSlot left ++ gFromSumSlots @c renderSlot right
   gSumEnumSlots renderSlot = 
