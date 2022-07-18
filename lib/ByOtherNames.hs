@@ -10,6 +10,7 @@
 module ByOtherNames
   ( -- * Aliases 
     Aliases,
+    zipAliasesWith,
     AliasList,
     aliasListBegin,
     alias,
@@ -18,9 +19,10 @@ module ByOtherNames
     Rubric (..),
     Aliased (aliases),
     -- * Generic helpers
-    GSum (..),
-    Slot (..),
+    GHasFieldNames (..),
     GRecord (..),
+    GSum (..),
+    Slots (..),
     -- * Re-exports
     Symbol,
   )

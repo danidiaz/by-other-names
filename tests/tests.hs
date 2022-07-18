@@ -50,7 +50,7 @@ instance Aliased JSON Foo where
 
 enumFoo :: [(Key, TypeRep)]
 enumFoo =
-  gRecordEnum @Typeable @(Rep Foo)
+  Data.Foldable.toList $ gRecordEnum @Typeable @(Rep Foo)
     ( aliasListBegin
         . alias @"aa" "aax"
         . alias @"bb" "bbx"

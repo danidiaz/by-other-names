@@ -1,8 +1,9 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -13,14 +14,13 @@
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE UndecidableInstances #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE DeriveFunctor #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 
 -- | This package provides the general mechanism for defining field and branch
@@ -34,29 +34,33 @@
 -- package for some new `Rubric`.
 module ByOtherNames.Internal
   ( Aliases (..),
+    zipAliasesWith,
     AliasList,
     aliasListBegin,
     alias,
     aliasListEnd,
     Aliased (aliases),
     Rubric (..),
+
     -- * Generic helpers
-    GSum (..),
-    Slot (..),
+    GHasFieldNames (..),
     GRecord (..),
+    GHasBranchNames (..),
+    GSum (..),
+    Slots (..),
     -- * Re-exports
     Symbol,
   )
 where
 
+import Control.Applicative
+import Data.Foldable.WithIndex
+import Data.Functor.WithIndex
 import Data.Kind
 import Data.Proxy
+import Data.Traversable.WithIndex
 import GHC.Generics
 import GHC.TypeLits
-import Data.Functor.WithIndex
-import Data.Foldable.WithIndex
-import Data.Traversable.WithIndex
-import Control.Applicative
 
 -- | This datatype carries the field aliases and matches the structure of the
 --   generic Rep' shape.
@@ -83,8 +87,17 @@ data Aliases rep a where
     Aliases fields a ->
     Aliases (D1 x (C1 y fields)) a
 
+zipAliasesWith :: (a -> b -> c) -> Aliases rep a -> Aliases rep b -> Aliases rep c
+zipAliasesWith f a1 a2 = case (a1, a2) of
+    (Field a, Field b) -> Field (f a b)
+    (Branch a, Branch b) -> Branch (f a b)
+    (FieldTree a1 a2, FieldTree b1 b2) -> FieldTree (zipAliasesWith f a1 b1) (zipAliasesWith f a2 b2)
+    (BranchTree a1 a2, BranchTree b1 b2) -> BranchTree (zipAliasesWith f a1 b1) (zipAliasesWith f a2 b2)
+    (Sum a, Sum b) -> Sum (zipAliasesWith f a b)
+    (Record a, Record b) -> Record (zipAliasesWith f a b)
+
 instance Functor (Aliases rep) where
-  fmap f as = case as of 
+  fmap f as = case as of
     Field a -> Field (f a)
     Branch a -> Branch (f a)
     FieldTree left right -> FieldTree (fmap f left) (fmap f right)
@@ -93,29 +106,29 @@ instance Functor (Aliases rep) where
     Record a -> Record (fmap f a)
 
 instance Foldable (Aliases rep) where
-    foldMap f as = case as of
-      Field a -> f a
-      Branch a -> f a
-      FieldTree left right -> foldMap f left <> foldMap f right
-      BranchTree left right -> foldMap f left <> foldMap f right
-      Sum a -> foldMap f a
-      Record a -> foldMap f a
+  foldMap f as = case as of
+    Field a -> f a
+    Branch a -> f a
+    FieldTree left right -> foldMap f left <> foldMap f right
+    BranchTree left right -> foldMap f left <> foldMap f right
+    Sum a -> foldMap f a
+    Record a -> foldMap f a
 
 instance Traversable (Aliases rep) where
-  traverse f as = case as of 
-      Field a -> Field <$> f a
-      Branch a -> Branch <$> f a
-      FieldTree left right -> FieldTree <$> traverse f left <*> traverse f right
-      BranchTree left right -> BranchTree  <$> traverse f left <*> traverse f right
-      Sum a -> Sum <$> traverse f a
-      Record a -> Record <$> traverse f a
+  traverse f as = case as of
+    Field a -> Field <$> f a
+    Branch a -> Branch <$> f a
+    FieldTree left right -> FieldTree <$> traverse f left <*> traverse f right
+    BranchTree left right -> BranchTree <$> traverse f left <*> traverse f right
+    Sum a -> Sum <$> traverse f a
+    Record a -> Record <$> traverse f a
 
 deriving anyclass instance (FunctorWithIndex String (Aliases rep))
 
 deriving anyclass instance (FoldableWithIndex String (Aliases rep))
 
 instance TraversableWithIndex String (Aliases rep) where
-  itraverse f as = case as of 
+  itraverse f as = case as of
     afield@(Field a) -> Field <$> traverseField f afield a
     abranch@(Branch a) -> Branch <$> traverseBranch f abranch a
     FieldTree left right -> FieldTree <$> itraverse f left <*> itraverse f right
@@ -124,11 +137,13 @@ instance TraversableWithIndex String (Aliases rep) where
     Record a -> Record <$> itraverse f a
     where
       traverseField :: forall fieldName a m b v proxy unpackedness strictness laziness. KnownSymbol fieldName => (String -> a -> m b) -> proxy (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a -> a -> m b
-      traverseField f _ a = let fieldName = symbolVal (Proxy @fieldName)
-        in f fieldName a
+      traverseField f _ a =
+        let fieldName = symbolVal (Proxy @fieldName)
+         in f fieldName a
       traverseBranch :: forall branchName a m b v proxy fixity sels. KnownSymbol branchName => (String -> a -> m b) -> proxy (C1 ('MetaCons branchName fixity sels) v) a -> a -> m b
-      traverseBranch f _ a = let branchName = symbolVal (Proxy @branchName)
-        in f branchName a
+      traverseBranch f _ a =
+        let branchName = symbolVal (Proxy @branchName)
+         in f branchName a
 
 -- | An intermediate datatype that makes it easier to specify the aliases.  See
 -- 'aliasListBegin', 'alias' and 'aliasListEnd'.
@@ -231,7 +246,7 @@ instance AliasTree before (left :+: right) '[] => AliasTree before (D1 x (left :
 -- | Typeclass for datatypes @r@ that have aliases for some 'Rubric' @k@.
 type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
-  aliases :: Aliases (Rep r) (AliasType k) 
+  aliases :: Aliases (Rep r) (AliasType k)
 
 -- | Typeclass for marker datakinds used as rubrics, to classify aliases.
 --
@@ -241,60 +256,101 @@ class Rubric k where
   type AliasType k :: Type
 
 
+class GHasFieldNames rep where
+  gGetFieldNames :: Aliases rep String
+
+
+instance GHasFieldNames prod => GHasFieldNames (D1 x (C1 y prod)) where
+  gGetFieldNames = Record (gGetFieldNames @prod)
+
+instance KnownSymbol fieldName => GHasFieldNames (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) (Rec0 v)) where
+  gGetFieldNames = Field (symbolVal (Proxy @fieldName))
+
+instance
+  (GHasFieldNames left, GHasFieldNames right) =>
+  GHasFieldNames (left :*: right)
+  where
+  gGetFieldNames = FieldTree (gGetFieldNames @left) (gGetFieldNames @right)
+
+
+class GHasBranchNames rep where
+  gGetBranchNames :: Aliases rep String
+
+instance
+  (GHasBranchNames (left :+: right)) =>
+  GHasBranchNames (D1 x (left :+: right))
+  where
+  gGetBranchNames = Sum (gGetBranchNames @(left :+: right))
+
+instance
+  ( GHasBranchNames left,
+    GHasBranchNames right
+  ) =>
+  GHasBranchNames (left :+: right)
+  where
+  gGetBranchNames = BranchTree (gGetBranchNames @left) (gGetBranchNames @right)
+
+instance KnownSymbol branchName => GHasBranchNames (C1 ('MetaCons branchName fixity sels) y) where
+  gGetBranchNames = Branch (symbolVal (Proxy @branchName))
+
 --
 --
 class GRecord (c :: Type -> Constraint) rep where
-  gToRecord :: Applicative m =>  
+  gToRecord ::
+    Applicative m =>
     Aliases rep a ->
-    (forall v . c v => a -> m v) ->
+    (forall v. c v => a -> m v) ->
     m (rep z)
   gFromRecord ::
     Aliases rep a ->
     (forall v. c v => a -> v -> o) ->
     rep z ->
-    [o]
-  gRecordEnum :: 
+    Aliases rep o
+  gRecordEnum ::
     Aliases rep a ->
     (forall v. c v => a -> Proxy v -> o) ->
-    [o]
+    Aliases rep o
 
 instance GRecord c prod => GRecord c (D1 x (C1 y prod)) where
   gToRecord (Record as) parseField =
-    M1 . M1 <$> gToRecord @c  as parseField
-  gFromRecord (Record as) renderField (M1 (M1 prod)) = 
-    gFromRecord @c as renderField prod
-  gRecordEnum (Record as) renderField = gRecordEnum @c @prod as renderField
+    M1 . M1 <$> gToRecord @c as parseField
+  gFromRecord (Record as) renderField (M1 (M1 prod)) =
+    Record (gFromRecord @c as renderField prod)
+  gRecordEnum (Record as) renderField = Record (gRecordEnum @c @prod as renderField)
 
 instance c v => GRecord c (S1 x (Rec0 v)) where
-  gToRecord (Field a) parseField = 
+  gToRecord (Field a) parseField =
     M1 . K1 <$> parseField a
-  gFromRecord (Field a) renderField (M1 (K1 v)) = [renderField a v]
-  gRecordEnum (Field a) renderField = [renderField a (Proxy @v)]
+  gFromRecord (Field a) renderField (M1 (K1 v)) = Field ( renderField a v )
+  gRecordEnum (Field a) renderField = Field (renderField a (Proxy @v))
 
-instance (GRecord c left, GRecord c right) =>
-  GRecord c (left :*: right) where
+instance
+  (GRecord c left, GRecord c right) =>
+  GRecord c (left :*: right)
+  where
   gToRecord (FieldTree aleft aright) parseField =
     (:*:) <$> gToRecord @c aleft parseField <*> gToRecord @c aright parseField
-  gFromRecord (FieldTree aleft aright) renderField (left :*: right) = 
-    gFromRecord @c aleft renderField left  ++ gFromRecord @c aright renderField right
+  gFromRecord (FieldTree aleft aright) renderField (left :*: right) =
+    FieldTree (gFromRecord @c aleft renderField left) (gFromRecord @c aright renderField right)
   gRecordEnum (FieldTree aleft aright) renderField =
-    gRecordEnum @c @left aleft renderField ++ gRecordEnum @c @right aright renderField 
+    FieldTree (gRecordEnum @c @left aleft renderField) (gRecordEnum @c @right aright renderField)
 
 --
 --
-data Slot m1 m2 v =
-        ZeroSlots v
-      | SingleSlot (m1 v)
-      | ManySlots (m2 v)
-      deriving stock (Show, Functor)
+data Slots m1 m2 v
+  = ZeroSlots v
+  | SingleSlot (m1 v)
+  | ManySlots (m2 v)
+  deriving stock (Show, Functor)
 
 class GSum (c :: Type -> Constraint) rep where
-  gToSum :: (Functor n, Applicative m2) =>
+  gToSum ::
+    (Functor n, Applicative m2) =>
     Aliases rep a ->
-    (forall b . a -> Slot m1 m2 b -> n b) ->
-    (forall v . c v => m1 v) ->
-    (forall v . c v => m2 v) ->
-    Aliases rep ( n (rep z) )
+    (forall b. a -> Slots m1 m2 b -> n b) ->
+    (forall v. c v => m1 v) ->
+    (forall v. c v => m2 v) ->
+    Aliases rep (n (rep z))
   gFromSum ::
     Aliases rep a ->
     (forall v. c v => v -> o) ->
@@ -324,38 +380,37 @@ instance
   gFromSum (BranchTree aleft aright) renderSlot = \case
     L1 rleft -> gFromSum @c aleft renderSlot rleft
     R1 rright -> gFromSum @c aright renderSlot rright
-  gSumEnum (BranchTree aleft aright) renderSlot = 
+  gSumEnum (BranchTree aleft aright) renderSlot =
     BranchTree (gSumEnum @c aleft renderSlot) (gSumEnum @c aright renderSlot)
-
 
 instance GSum c (C1 x U1) where
   gToSum (Branch fieldName) parseBranch parseSlot1 parseSlot2 =
-    Branch ( parseBranch fieldName (ZeroSlots (M1 U1)) )
+    Branch (parseBranch fieldName (ZeroSlots (M1 U1)))
   gFromSum (Branch fieldName) renderSlot _ =
     (fieldName, [])
-  gSumEnum (Branch fieldName) renderSlot = 
-    Branch (fieldName,[])
+  gSumEnum (Branch fieldName) renderSlot =
+    Branch (fieldName, [])
 
 instance (c v) => GSum c (C1 x (S1 y (Rec0 v))) where
   gToSum (Branch fieldName) parseBranch parseSlot1 parseSlot2 =
-    Branch ( M1 . M1. K1 <$> parseBranch fieldName (SingleSlot parseSlot1) )
+    Branch (M1 . M1 . K1 <$> parseBranch fieldName (SingleSlot parseSlot1))
   gFromSum (Branch fieldName) renderSlot (M1 (M1 (K1 slots))) =
-    (fieldName, [ renderSlot slots ])
-  gSumEnum (Branch fieldName) renderSlot = 
-    Branch (fieldName, [ renderSlot (Proxy @v) ])
+    (fieldName, [renderSlot slots])
+  gSumEnum (Branch fieldName) renderSlot =
+    Branch (fieldName, [renderSlot (Proxy @v)])
 
 instance (GSumSlots c (left :*: right)) => GSum c (C1 x (left :*: right)) where
   gToSum (Branch fieldName) parseBranch parseSlot1 parseSlot2 =
-    Branch ( M1 <$> parseBranch fieldName (ManySlots (gToSumSlots @c parseSlot2)) )
+    Branch (M1 <$> parseBranch fieldName (ManySlots (gToSumSlots @c parseSlot2)))
   gFromSum (Branch fieldName) renderSlot (M1 slots) =
     (fieldName, gFromSumSlots @c renderSlot slots)
-  gSumEnum (Branch fieldName) renderSlot = 
+  gSumEnum (Branch fieldName) renderSlot =
     Branch (fieldName, gSumEnumSlots @c @(left :*: right) renderSlot)
 
-
 class GSumSlots (c :: Type -> Constraint) rep where
-  gToSumSlots :: Applicative m =>
-    (forall v . c v => m v) ->
+  gToSumSlots ::
+    Applicative m =>
+    (forall v. c v => m v) ->
     m (rep z)
   gFromSumSlots :: (forall v. c v => v -> o) -> rep z -> [o]
   gSumEnumSlots :: (forall v. c v => Proxy v -> o) -> [o]
@@ -371,9 +426,9 @@ instance
   ) =>
   GSumSlots c (left :*: right)
   where
-  gToSumSlots parseSlot =   
+  gToSumSlots parseSlot =
     (:*:) <$> gToSumSlots @c @left parseSlot <*> gToSumSlots @c @right parseSlot
   gFromSumSlots renderSlot (left :*: right) =
     gFromSumSlots @c renderSlot left ++ gFromSumSlots @c renderSlot right
-  gSumEnumSlots renderSlot = 
+  gSumEnumSlots renderSlot =
     gSumEnumSlots @c @left renderSlot ++ gSumEnumSlots @c @right renderSlot

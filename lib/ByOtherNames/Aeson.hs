@@ -199,4 +199,4 @@ instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
 --
 instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord s r) where
   toJSON (JSONRecord o) =
-    object $ gFromRecord @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)
+    object $ Data.Foldable.toList $ gFromRecord @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)
