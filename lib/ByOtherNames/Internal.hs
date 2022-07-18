@@ -65,9 +65,6 @@ import GHC.TypeLits
 
 -- | This datatype carries the field aliases and matches the structure of the
 --   generic Rep' shape.
---
---   Note that the type of the aliases is polymorphic; it depends on the
---   'Rubric'.
 type Aliases :: (Type -> Type) -> Type -> Type
 data Aliases rep a where
   Field :: KnownSymbol fieldName => a -> Aliases (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a
@@ -124,6 +121,7 @@ instance Traversable (Aliases rep) where
     Sum a -> Sum <$> traverse f a
     Record a -> Record <$> traverse f a
 
+-- | Indexed by the field or branch names.
 deriving anyclass instance (FunctorWithIndex String (Aliases rep))
 
 deriving anyclass instance (FoldableWithIndex String (Aliases rep))
@@ -146,7 +144,7 @@ instance TraversableWithIndex String (Aliases rep) where
         let branchName = symbolVal (Proxy @branchName)
          in f branchName a
 
--- | An intermediate datatype that makes it easier to specify the aliases.  See
+-- | An intermediate datatype for specifying the aliases.  See
 -- 'aliasListBegin', 'alias' and 'aliasListEnd'.
 type AliasList :: [Symbol] -> Type -> Type
 data AliasList names a where
@@ -249,9 +247,16 @@ type Aliased :: k -> Type -> Constraint
 class (Rubric k, Generic r) => Aliased k r where
   aliases :: Aliases (Rep r) (AliasType k)
 
--- | Typeclass for marker datakinds used as rubrics, to classify aliases.
+-- | Typeclass for marker datakinds used as rubrics, for classifying aliases according to their use.
 --
--- The associated type family `ForRubric` gives the type of the aliases.
+-- The associated type family `AliasType` gives the type of the aliases.
+--
+-- 'Rubric's are needed when defining helper newtypes for use with @-XDerivingVia@. Because
+-- 'Aliases' are defined at the value level, we need a way to relate the aliases with
+-- the datatype during deriving.
+
+-- If you are using 'Aliases' in standalone functions (possibly in combination with
+-- 'GRecord' and 'GSum') you might not need to define a 'Rubric'. 
 type Rubric :: k -> Constraint
 class Rubric k where
   type AliasType k :: Type

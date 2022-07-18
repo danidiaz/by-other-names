@@ -119,7 +119,7 @@ newtype JSONRecord objectName r = JSONRecord r
 --
 -- The 'Symbol' type parameter is used in parse error messages.
 type JSONSum :: Symbol -> Type -> Type
-newtype JSONSum s r = JSONSum r
+newtype JSONSum objectName r = JSONSum r
 
 --
 --

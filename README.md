@@ -21,7 +21,7 @@ called a "rubric".
 build-depends:
   by-other-names ^>= 1.2.0.0
 ```
-## Other packages
+## Other related packages
 
 - [generics-sop](https://hackage.haskell.org/package/generics-sop)
 
@@ -32,6 +32,3 @@ build-depends:
 - [generic-data-surgery](https://hackage.haskell.org/package/generic-data-surgery)
 
 - [one-liner](https://hackage.haskell.org/package/one-liner)
-
-
-
