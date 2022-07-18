@@ -45,3 +45,16 @@ test-suite tests
                        aeson                >= 1.5.2.0,
                        by-other-names,
   default-language:    Haskell2010
+
+-- VERY IMPORTANT for doctests to work: https://stackoverflow.com/a/58027909/1364288
+-- http://hackage.haskell.org/package/cabal-doctest
+test-suite doctests
+  ghc-options:         -threaded
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      tests
+  main-is:             doctests.hs
+  build-depends:       
+                       base                 >= 4.10.0.0 && < 5,
+                       doctest            ^>= 0.20,
+                       by-other-names, 
+  default-language:    Haskell2010
