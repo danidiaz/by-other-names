@@ -31,53 +31,40 @@
 -- - TypeApplications
 -- - ScopedTypeVariables
 --
--- Example of use:
+-- Example of use for a record type:
 --
--- @
--- import ByOtherNames.Aeson
---   (
---     JSONRubric (JSON),
---     JSONRecord(..),
---     JSONSum(..),
---     Proxy(Proxy),
---     Aliased,
---     alias,
---     aliasListBegin
---     aliasListEnd,
---     aliases
---   )
--- import Data.Aeson
--- import Data.Aeson.Types
--- import GHC.Generics
--- import GHC.TypeLits
---
+-- >>> :{
 -- data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
 --   deriving (Read, Show, Eq, Generic)
 --   deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
---
 -- instance Aliased JSON Foo where
 --   aliases =
 --     aliasListBegin
---       $ alias \@"aa" "aax"
---       $ alias \@"bb" "bbx"
---       $ alias \@"cc" "ccx"
+--       $ alias @"aa" "aax"
+--       $ alias @"bb" "bbx"
+--       $ alias @"cc" "ccx"
 --       $ aliasListEnd
+-- :}
 --
+-- Example of use for a sum type:
+--
+-- >>> :{
 -- data Summy
 --   = Aa Int
 --   | Bb Bool
 --   | Cc
 --   deriving (Read, Show, Eq, Generic)
 --   deriving (FromJSON, ToJSON) via (JSONSum "sum" Summy)
---
 -- instance Aliased JSON Summy where
 --   aliases =
 --     aliasListBegin
---       $ alias \@"Aa" "Aax"
---       $ alias \@"Bb" "Bbx"
---       $ alias \@"Cc" "Ccx"
+--       $ alias @"Aa" "Aax"
+--       $ alias @"Bb" "Bbx"
+--       $ alias @"Cc" "Ccx"
 --       $ aliasListEnd
--- @
+-- :}
+--
+--
 module ByOtherNames.Aeson
   ( -- * JSON helpers
     JSONRubric (..),
@@ -200,3 +187,19 @@ instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
 instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord s r) where
   toJSON (JSONRecord o) =
     object $ Data.Foldable.toList $ gFromRecord @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)
+
+-- $setup
+--
+-- >>> :set -XBlockArguments
+-- >>> :set -XTypeApplications
+-- >>> :set -XDerivingStrategies
+-- >>> :set -XDerivingVia
+-- >>> :set -XDataKinds
+-- >>> :set -XMultiParamTypeClasses
+-- >>> :set -XDeriveGeneric
+-- >>> :set -XOverloadedStrings
+-- >>> import ByOtherNames.Aeson
+-- >>> import Data.Aeson
+-- >>> import Data.Aeson.Types
+-- >>> import GHC.Generics
+-- >>> import GHC.TypeLits
