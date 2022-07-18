@@ -15,6 +15,24 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE ViewPatterns #-}
 
+-- | This module provides a quasiquoter which makes it a bit easier to define
+-- lists of textual aliases.
+--
+-- >>> :{
+-- data Foo = Foo {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
+--            deriving stock (Read, Show, Eq, Generic)
+--            deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
+-- instance Aliased JSON Foo where
+--   aliases = [aliasList| 
+--      xa = "aax",
+--      xb = "bbx",
+--      xc = "ccx",
+--      xd = "ddx",
+--      xe = "eex",
+--    |]
+-- :}
+--
+--
 module ByOtherNames.TH (aliasList) where
 
 import Control.Applicative
@@ -89,3 +107,22 @@ sepEndBy p sep = sepEndBy1 p sep <|> pure []
 sepEndBy1 :: Alternative m => m a -> m sep -> m [a]
 sepEndBy1 p sep = liftA2 (:) p ((sep *> sepEndBy p sep) <|> pure [])
 {-# INLINEABLE sepEndBy1 #-}
+
+-- $setup
+--
+-- >>> :set -XBlockArguments
+-- >>> :set -XTypeApplications
+-- >>> :set -XDerivingStrategies
+-- >>> :set -XDerivingVia
+-- >>> :set -XDataKinds
+-- >>> :set -XMultiParamTypeClasses
+-- >>> :set -XDeriveGeneric
+-- >>> :set -XOverloadedStrings
+-- >>> :set -XTemplateHaskell
+-- >>> :set -XQuasiQuotes
+-- >>> import ByOtherNames.Aeson
+-- >>> import ByOtherNames.TH
+-- >>> import Data.Aeson
+-- >>> import Data.Aeson.Types
+-- >>> import GHC.Generics
+-- >>> import GHC.TypeLits

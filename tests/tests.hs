@@ -78,7 +78,6 @@ data FooTH = FooTH {xa :: Int, xb :: Bool, xc :: Char, xd :: String, xe :: Int}
 instance Aliased JSON FooTH where
   aliases =
     [aliasList| 
-
     xa = "aax",
     xb = "bbx",
     xc = "ccx",
