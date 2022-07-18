@@ -21,6 +21,7 @@ source-repository head
 library
   exposed-modules:     ByOtherNames
                        ByOtherNames.Aeson
+                       ByOtherNames.Constraint
                        ByOtherNames.TH
                        ByOtherNames.Internal
   build-depends:       base                 >= 4.10.0.0 && < 5,
