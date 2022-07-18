@@ -1,4 +1,10 @@
 ﻿
+1.2.0.0
+=======
+
+- Hid the internals of the `Aliases` module in the main module.
+- Various generic helpers.
+
 1.0.1.0
 =======
 
