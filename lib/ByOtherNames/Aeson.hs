@@ -64,6 +64,11 @@
 --       $ aliasListEnd
 -- :}
 --
+-- Some limitations:
+-- 
+-- - Fields in branches of sum types can't have selectors. When there is more than one field in a branch, they are parsed as a JSON Array.
+-- 
+-- - For sum types, only the "object with a single key consisting in the branch tag" style of serialization is supported.
 --
 module ByOtherNames.Aeson
   ( -- * JSON helpers
@@ -105,9 +110,9 @@ instance Rubric JSON where
 -- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for record types,
 -- using DerivingVia.
 --
--- The 'Symbol' type parameter is used in parse error messages.
+-- The @objectName@ type parameter of kind 'Symbol' is used in parse error messages.
 type JSONRecord :: Symbol -> Type -> Type
-newtype JSONRecord s r = JSONRecord r
+newtype JSONRecord objectName r = JSONRecord r
 
 -- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for sum types,
 -- using DerivingVia.
@@ -118,7 +123,7 @@ newtype JSONSum s r = JSONSum r
 
 --
 --
-instance (KnownSymbol s, Aliased JSON r, GSum FromJSON (Rep r)) => FromJSON (JSONSum s r) where
+instance (KnownSymbol objectName, Aliased JSON r, GSum FromJSON (Rep r)) => FromJSON (JSONSum objectName r) where
   parseJSON v =
     let parsers = gToSum @FromJSON (aliases @JSONRubric @JSON @r) 
           (\a -> \case 
@@ -140,7 +145,7 @@ instance (KnownSymbol s, Aliased JSON r, GSum FromJSON (Rep r)) => FromJSON (JSO
               r <- parseJSON v
               pure (r, vs))
         parserForObject o = asum $ fmap (($ o) . runBranchParser) parsers
-     in JSONSum . to <$> withObject (symbolVal (Proxy @s)) parserForObject v
+     in JSONSum . to <$> withObject (symbolVal (Proxy @objectName)) parserForObject v
 newtype BranchParser v = BranchParser { runBranchParser :: Object -> Parser v}
   deriving stock Functor
 
@@ -162,11 +167,11 @@ instance Applicative ProductInBranchParser where
 
 --
 --
-instance (KnownSymbol s, Aliased JSON r, GRecord FromJSON (Rep r)) => FromJSON (JSONRecord s r) where
+instance (KnownSymbol objectName, Aliased JSON r, GRecord FromJSON (Rep r)) => FromJSON (JSONRecord objectName r) where
   parseJSON v =
     let FieldParser parser = gToRecord @FromJSON (aliases @JSONRubric @JSON @r) 
           (\fieldName -> FieldParser (\o ->explicitParseField parseJSON o fieldName))
-        objectName = symbolVal (Proxy @s)
+        objectName = symbolVal (Proxy @objectName)
      in JSONRecord . to <$> withObject objectName parser v
 newtype FieldParser a = FieldParser (Object -> Parser a)
   deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
@@ -174,7 +179,7 @@ newtype FieldParser a = FieldParser (Object -> Parser a)
 
 --
 --
-instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
+instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum objectName r) where
   toJSON (JSONSum o) =
     let (key, slots) = gFromSum @ToJSON @(Rep r) @Key @Value @Value (aliases @JSONRubric @JSON @r) toJSON (from @r o)
      in case slots of
@@ -184,7 +189,7 @@ instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum s r) where
 
 --
 --
-instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord s r) where
+instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord objectName r) where
   toJSON (JSONRecord o) =
     object $ Data.Foldable.toList $ gFromRecord @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)
 

@@ -6,7 +6,7 @@
 -- used to namespace the aliases.
 --
 -- This module should only be imported if you want to define your own adapter
--- package for some new `Rubric`.
+-- package for some new `Rubric`. See "ByOtherNames.Aeson" for a concrete example.
 module ByOtherNames
   ( -- * Aliases 
     Aliases,
