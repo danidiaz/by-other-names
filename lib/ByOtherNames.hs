@@ -19,8 +19,10 @@ module ByOtherNames
     Rubric (..),
     Aliased (aliases),
     -- * Generic helpers
+    GHasDatatypeName(..),
     GHasFieldNames (..),
     GRecord (..),
+    GHasBranchNames (..),
     GSum (..),
     Slots (..),
     -- * Re-exports

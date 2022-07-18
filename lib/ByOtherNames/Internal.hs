@@ -43,6 +43,7 @@ module ByOtherNames.Internal
     Rubric (..),
 
     -- * Generic helpers
+    GHasDatatypeName(..),
     GHasFieldNames (..),
     GRecord (..),
     GHasBranchNames (..),
@@ -255,6 +256,11 @@ type Rubric :: k -> Constraint
 class Rubric k where
   type AliasType k :: Type
 
+class GHasDatatypeName rep where
+  gGetDatatypeName :: String
+
+instance KnownSymbol datatypeName => GHasDatatypeName (D1 (MetaData datatypeName m p nt) (C1 y prod)) where
+  gGetDatatypeName = symbolVal (Proxy @datatypeName)
 
 class GHasFieldNames rep where
   gGetFieldNames :: Aliases rep String
@@ -308,8 +314,8 @@ class GRecord (c :: Type -> Constraint) rep where
     Aliases rep o
   gRecordEnum ::
     Aliases rep a ->
-    (forall v. c v => a -> Proxy v -> o) ->
-    Aliases rep o
+    (forall v. c v => Proxy v -> o) ->
+    Aliases rep (a, o)
 
 instance GRecord c prod => GRecord c (D1 x (C1 y prod)) where
   gToRecord (Record as) parseField =
@@ -322,7 +328,7 @@ instance c v => GRecord c (S1 x (Rec0 v)) where
   gToRecord (Field a) parseField =
     M1 . K1 <$> parseField a
   gFromRecord (Field a) renderField (M1 (K1 v)) = Field ( renderField a v )
-  gRecordEnum (Field a) renderField = Field (renderField a (Proxy @v))
+  gRecordEnum (Field a) renderField = Field (a, renderField (Proxy @v))
 
 instance
   (GRecord c left, GRecord c right) =>

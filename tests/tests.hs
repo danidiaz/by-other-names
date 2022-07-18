@@ -27,12 +27,12 @@ import ByOtherNames.TH
 import Control.Monad (forM)
 import Data.Aeson
 import Data.Aeson.Types
+import Data.Foldable
 import Data.Typeable
 import GHC.Generics
 import GHC.TypeLits
 import Test.Tasty
 import Test.Tasty.HUnit
-import Data.Foldable
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
   deriving (Read, Show, Eq, Generic)
@@ -50,16 +50,17 @@ instance Aliased JSON Foo where
 
 enumFoo :: [(Key, TypeRep)]
 enumFoo =
-  Data.Foldable.toList $ gRecordEnum @Typeable @(Rep Foo)
-    ( aliasListBegin
-        . alias @"aa" "aax"
-        . alias @"bb" "bbx"
-        . alias @"cc" "ccx"
-        . alias @"dd" "ddx"
-        . alias @"ee" "eex"
-        $ aliasListEnd
-    )
-    (\a proxy -> (a, typeRep proxy))
+  Data.Foldable.toList $
+    gRecordEnum @Typeable @(Rep Foo)
+      ( aliasListBegin
+          . alias @"aa" "aax"
+          . alias @"bb" "bbx"
+          . alias @"cc" "ccx"
+          . alias @"dd" "ddx"
+          . alias @"ee" "eex"
+          $ aliasListEnd
+      )
+      typeRep
 
 expectedEnumFoo :: [(Key, TypeRep)]
 expectedEnumFoo =
@@ -105,17 +106,18 @@ instance Aliased JSON Summy where
       $ aliasListEnd
 
 enumSummy :: [(Key, [TypeRep])]
-enumSummy = Data.Foldable.toList $
-  gSumEnum @Typeable @(Rep Summy)
-    ( aliasListBegin
-        . alias @"Aa" "Aax"
-        . alias @"Bb" "Bbx"
-        . alias @"Cc" "Ccx"
-        . alias @"Dd" "Ddx"
-        . alias @"Ee" "Eex"
-        $ aliasListEnd
-    )
-    typeRep
+enumSummy =
+  Data.Foldable.toList $
+    gSumEnum @Typeable @(Rep Summy)
+      ( aliasListBegin
+          . alias @"Aa" "Aax"
+          . alias @"Bb" "Bbx"
+          . alias @"Cc" "Ccx"
+          . alias @"Dd" "Ddx"
+          . alias @"Ee" "Eex"
+          $ aliasListEnd
+      )
+      typeRep
 
 expectedEnumSummy :: [(Key, [TypeRep])]
 expectedEnumSummy =
