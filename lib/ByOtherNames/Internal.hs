@@ -161,9 +161,34 @@ alias = Cons (Proxy @name)
 -- | Define the aliases for a type by listing them.
 --
 -- See also 'alias' and 'aliasListEnd'.
-aliasListBegin :: forall before a tree. (AliasTree before tree '[]) => AliasList before a -> Aliases tree a
+--
+-- The type of the argument is indexed by a list of 'Symbol's, while the 
+-- type of the result is indexed by a generic 'Rep'.
+--
+-- Example for a record:
+--
+-- >>> :{
+-- data Foo = Foo {aa :: Int, bb :: Bool}
+--   deriving (Read, Show, Generic)
+-- fieldAliases :: Aliases (Rep Foo) String
+-- fieldAliases = aliasListBegin $ alias @"aa" "alias1" $ alias @"bb" "alias2" $ aliasListEnd
+-- :}
+--
+-- Example for a sum:
+--
+-- >>> :{
+-- data Bar = Aa Int | Bb
+--   deriving (Read, Show, Generic)
+-- branchAliases :: Aliases (Rep Bar) String
+-- branchAliases = aliasListBegin $ alias @"Aa" "alias1" $ alias @"Bb" "alias2" $ aliasListEnd
+-- :}
+--
+--
+aliasListBegin :: forall names a rep. (AliasTree names rep '[]) 
+  => AliasList names a 
+  -> Aliases rep a
 aliasListBegin names =
-  let (aliases, Null) = parseAliasTree @before @tree names
+  let (aliases, Null) = parseAliasTree @names @rep names
    in aliases
 
 -- | The empty `AliasList`.
@@ -480,3 +505,18 @@ instance
     gFromSumSlots @c renderSlot left ++ gFromSumSlots @c renderSlot right
   gSumEnumSlots renderSlot =
     gSumEnumSlots @c @left renderSlot ++ gSumEnumSlots @c @right renderSlot
+
+
+-- $setup
+--
+-- >>> :set -XBlockArguments
+-- >>> :set -XTypeApplications
+-- >>> :set -XDerivingStrategies
+-- >>> :set -XDerivingVia
+-- >>> :set -XDataKinds
+-- >>> :set -XMultiParamTypeClasses
+-- >>> :set -XDeriveGeneric
+-- >>> :set -XOverloadedStrings
+-- >>> import ByOtherNames
+-- >>> import GHC.Generics
+-- >>> import GHC.TypeLits
