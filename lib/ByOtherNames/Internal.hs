@@ -43,12 +43,13 @@ module ByOtherNames.Internal
     Rubric (..),
 
     -- * Generic helpers
-    GHasDatatypeName(..),
+    GHasDatatypeName (..),
     GHasFieldNames (..),
     GRecord (..),
     GHasBranchNames (..),
     GSum (..),
     Slots (..),
+
     -- * Re-exports
     Symbol,
   )
@@ -87,12 +88,12 @@ data Aliases rep a where
 
 zipAliasesWith :: (a -> b -> c) -> Aliases rep a -> Aliases rep b -> Aliases rep c
 zipAliasesWith f a1 a2 = case (a1, a2) of
-    (Field a, Field b) -> Field (f a b)
-    (Branch a, Branch b) -> Branch (f a b)
-    (FieldTree a1 a2, FieldTree b1 b2) -> FieldTree (zipAliasesWith f a1 b1) (zipAliasesWith f a2 b2)
-    (BranchTree a1 a2, BranchTree b1 b2) -> BranchTree (zipAliasesWith f a1 b1) (zipAliasesWith f a2 b2)
-    (Sum a, Sum b) -> Sum (zipAliasesWith f a b)
-    (Record a, Record b) -> Record (zipAliasesWith f a b)
+  (Field a, Field b) -> Field (f a b)
+  (Branch a, Branch b) -> Branch (f a b)
+  (FieldTree a1 a2, FieldTree b1 b2) -> FieldTree (zipAliasesWith f a1 b1) (zipAliasesWith f a2 b2)
+  (BranchTree a1 a2, BranchTree b1 b2) -> BranchTree (zipAliasesWith f a1 b1) (zipAliasesWith f a2 b2)
+  (Sum a, Sum b) -> Sum (zipAliasesWith f a b)
+  (Record a, Record b) -> Record (zipAliasesWith f a b)
 
 instance Functor (Aliases rep) where
   fmap f as = case as of
@@ -256,20 +257,21 @@ class (Rubric k, Generic r) => Aliased k r where
 -- the datatype during deriving.
 
 -- If you are using 'Aliases' in standalone functions (possibly in combination with
--- 'GRecord' and 'GSum') you might not need to define a 'Rubric'. 
+-- 'GRecord' and 'GSum') you might not need to define a 'Rubric'.
 type Rubric :: k -> Constraint
 class Rubric k where
   type AliasType k :: Type
 
+-- | Given a datatype's 'Rep', obtain the datatype's name.
 class GHasDatatypeName rep where
   gGetDatatypeName :: String
 
 instance KnownSymbol datatypeName => GHasDatatypeName (D1 (MetaData datatypeName m p nt) (C1 y prod)) where
   gGetDatatypeName = symbolVal (Proxy @datatypeName)
 
+-- | Given a datatype's 'Rep', obtain its field names, assuming the datatype is a record.
 class GHasFieldNames rep where
   gGetFieldNames :: Aliases rep String
-
 
 instance GHasFieldNames prod => GHasFieldNames (D1 x (C1 y prod)) where
   gGetFieldNames = Record (gGetFieldNames @prod)
@@ -283,7 +285,7 @@ instance
   where
   gGetFieldNames = FieldTree (gGetFieldNames @left) (gGetFieldNames @right)
 
-
+-- | Given a datatype's 'Rep', obtain its brach names, assuming the datatype is a sum.
 class GHasBranchNames rep where
   gGetBranchNames :: Aliases rep String
 
@@ -304,20 +306,32 @@ instance
 instance KnownSymbol branchName => GHasBranchNames (C1 ('MetaCons branchName fixity sels) y) where
   gGetBranchNames = Branch (symbolVal (Proxy @branchName))
 
+-- | Helper typeclass for defining typeclass instances for record types.
 --
---
+-- Parameterized by a constraint @c@ that each field of the record must satisfy, and by
+-- the generic 'Rep' of the record.
 class GRecord (c :: Type -> Constraint) rep where
+  -- | Builds a parser for the entire generic 'Rep' out of parsers for each field.
   gToRecord ::
     Applicative m =>
+    -- | Field aliases.
     Aliases rep a ->
     (forall v. c v => a -> m v) ->
     m (rep z)
+
+  -- | Returns an uniform representation of each field's value in a record.
+  --
+  -- Useful for serializing.
   gFromRecord ::
+    -- | Field aliases.
     Aliases rep a ->
     (forall v. c v => a -> v -> o) ->
     rep z ->
     Aliases rep o
+
+  -- | Decorates an 'Aliases' value with values derived from the type of the corresponding fields.
   gRecordEnum ::
+    -- | Field aliases.
     Aliases rep a ->
     (forall v. c v => Proxy v -> o) ->
     Aliases rep (a, o)
@@ -332,7 +346,7 @@ instance GRecord c prod => GRecord c (D1 x (C1 y prod)) where
 instance c v => GRecord c (S1 x (Rec0 v)) where
   gToRecord (Field a) parseField =
     M1 . K1 <$> parseField a
-  gFromRecord (Field a) renderField (M1 (K1 v)) = Field ( renderField a v )
+  gFromRecord (Field a) renderField (M1 (K1 v)) = Field (renderField a v)
   gRecordEnum (Field a) renderField = Field (a, renderField (Proxy @v))
 
 instance
@@ -346,28 +360,51 @@ instance
   gRecordEnum (FieldTree aleft aright) renderField =
     FieldTree (gRecordEnum @c @left aleft renderField) (gRecordEnum @c @right aright renderField)
 
+-- | Helper for defining branch parsers.
 --
+-- @v@ is some part of a generic 'Rep', @m1@ is some parser type for when there's a single
+-- field in the branch, and @m2@ is some parser type for when there's more than one field
+-- in the branch.
 --
+-- @m1@ and @m2@ might be the same type.
 data Slots m1 m2 v
   = ZeroSlots v
   | SingleSlot (m1 v)
   | ManySlots (m2 v)
   deriving stock (Show, Functor)
 
+-- | Helper typeclass for defining typeclass instances for sum types.
+--
+-- Parameterized by a constraint @c@ that each field in each branch of the sum must satisfy, and by
+-- the generic 'Rep' of the sum.
 class GSum (c :: Type -> Constraint) rep where
+  -- | Builds a parser for the entire generic 'Rep'.
   gToSum ::
     (Functor n, Applicative m2) =>
+    -- | Branch aliases.
     Aliases rep a ->
+    -- | Convert a parser for a branch's fields into a parser for the branch.
     (forall b. a -> Slots m1 m2 b -> n b) ->
+    -- | Parser for when there's only one field in a branch.
     (forall v. c v => m1 v) ->
+    -- | Parser for when there's more than one field in a branch.
     (forall v. c v => m2 v) ->
     Aliases rep (n (rep z))
+
+  -- | Returns the annotation corresponding to the current branch,
+  -- along with an uniform representation of the branch field's values.
+  --
+  -- Useful for serializing.
   gFromSum ::
+    -- | Branch aliases.
     Aliases rep a ->
     (forall v. c v => v -> o) ->
     rep z ->
     (a, [o])
+
+  -- | Decorates an 'Aliases' value with values derived from the type of each branch's fields.
   gSumEnum ::
+    -- | Branch aliases.
     Aliases rep a ->
     (forall v. c v => Proxy v -> o) ->
     Aliases rep (a, [o])

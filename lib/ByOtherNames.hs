@@ -19,6 +19,7 @@ module ByOtherNames
     Rubric (..),
     Aliased (aliases),
     -- * Generic helpers
+    -- $helpers
     GHasDatatypeName(..),
     GHasFieldNames (..),
     GRecord (..),
@@ -31,3 +32,13 @@ module ByOtherNames
 where
 
 import ByOtherNames.Internal
+
+{- $helpers
+
+These generic helpers allow you to define typeclass instances for your datatypes
+in one go, without having to divide your logic across auxiliary instances, or
+deal with types of the generic representation like "GHC.Generics.D1".
+
+You still need to use "GHC.Generics.Rep", @from@, and @to@. 
+
+-}
