@@ -1,4 +1,9 @@
 ﻿
+1.2.1.0
+=======
+
+- JSONEnum: FromJSON / ToJSON instances for enum-like types without fields.
+
 1.2.0.1
 =======
 

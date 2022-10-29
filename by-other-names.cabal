@@ -1,6 +1,6 @@
 cabal-version:       3.0
 name:                by-other-names
-version:             1.2.0.1
+version:             1.2.1.0
 synopsis:            Give aliases to record fields.
 
 description:         Give aliases to record fields.
