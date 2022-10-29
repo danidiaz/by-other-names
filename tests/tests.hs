@@ -18,6 +18,7 @@ import ByOtherNames.Aeson
     JSONRecord (..),
     JSONRubric (JSON),
     JSONSum (..),
+    JSONEnum (..),
     alias,
     aliasListBegin,
     aliasListEnd,
@@ -127,6 +128,22 @@ expectedEnumSummy =
     ("Eex", [typeRep (Proxy @Int)])
   ]
 
+
+data Enumy
+  = Xx
+  | Yy
+  | Zz
+  deriving (Read, Show, Eq, Generic)
+  deriving (FromJSON, ToJSON) via (JSONEnum Enumy)
+instance Aliased JSON Enumy where
+  aliases =
+    aliasListBegin
+      $ alias @"Xx" "x"
+      $ alias @"Yy" "y"
+      $ alias @"Zz" "z"
+      $ aliasListEnd
+
+
 -- >>> enumSummy
 
 roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO ()
@@ -175,6 +192,14 @@ tests =
           testCase "d" $ roundtrip $ Dd 'f' True 0,
           testCase "e" $ roundtrip $ Ee 3
         ],
+      testGroup
+        "enumRoundtrip"
+        [
+          testCase "x" $ roundtrip Xx,
+          testCase "y" $ roundtrip Yy,
+          testCase "z" $ roundtrip Zz
+        ]
+       ,
       testGroup
         "enums"
         [ testCase "prod typeReps" $ assertEqual "prod typeReps match" expectedEnumFoo enumFoo,

@@ -94,6 +94,7 @@ module ByOtherNames.Aeson
     JSONRubric (..),
     JSONRecord (..),
     JSONSum (..),
+    JSONEnum (..),
 
     -- * Re-exports from ByOtherNames
     Aliased (aliases),
