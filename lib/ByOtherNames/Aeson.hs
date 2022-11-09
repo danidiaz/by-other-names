@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
@@ -154,39 +155,12 @@ newtype JSONSum objectName r = JSONSum r
 -- Each constructor is serialized to a JSON string.
 type JSONEnum :: Type -> Type
 newtype JSONEnum r = JSONEnum r
---  deriving FromJSON via (GeneralJSONEnum 'JSON ThisType r)
---  deriving ToJSON via (GeneralJSONEnum 'JSON ThisType r)
 
-
---
---
-instance (Aliased JSON r, GSum FromJSON (Rep r)) => FromJSON (JSONEnum r) where
-  parseJSON v =
-    let parsers =
-          gToSum @FromJSON
-            (aliases @JSONRubric @JSON @r)
-            ( \a -> \case
-                ZeroSlots x -> EnumBranchParser \case
-                  String a' | a == fromText a' -> pure x
-                  _ -> mempty
-                SingleSlot _ -> EnumBranchParser mempty
-                ManySlots _ -> EnumBranchParser mempty
-            )
-            Proxy
-            Proxy
-        parserForValue v = asum $ fmap (($ v) . runEnumBranchParser) parsers
-     in JSONEnum . to <$> parserForValue v
+deriving via (GeneralJSONEnum 'JSON ThisType r) instance (Aliased 'JSON r, GSum FromJSON (Rep r)) => FromJSON (JSONEnum r) 
+deriving via (GeneralJSONEnum 'JSON ThisType r) instance (Aliased 'JSON r, GSum Impossible (Rep r)) => ToJSON (JSONEnum r)
 
 newtype EnumBranchParser v = EnumBranchParser {runEnumBranchParser :: Value -> Parser v}
   deriving stock (Functor)
-
-instance (Aliased JSON r, GSum Impossible (Rep r)) => ToJSON (JSONEnum r) where
-  toJSON (JSONEnum o) =
-    let (key, slots) = gFromSum @Impossible @(Rep r) @Key @Value @Value (aliases @JSONRubric @JSON @r) absurd (from @r o)
-     in case slots of
-          [] -> String (toText key)
-          [_] -> error "never happens"
-          _ -> error "never happens"
 
 newtype BranchParser v = BranchParser {runBranchParser :: Object -> Parser v}
   deriving stock (Functor)
