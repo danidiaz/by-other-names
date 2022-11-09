@@ -1,4 +1,14 @@
-﻿
+﻿1.2.2.0
+=======
+
+- GeneralJSONEnum : like JSONEnum, but lets you define FromJSON/ToJSON instances
+  for a newtype that use the generic representation of the wrapped type,
+  *without* requiring FromJSON/ToJSON instances from the wrapped type. So it's
+  different from GeneralizedNewtypeDeriving: only the generic rep of the wrapped
+  type is used!
+
+  JSONEnum instances implemented in terms of GeneralJSONEnum.
+
 1.2.1.0
 =======
 
