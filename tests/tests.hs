@@ -19,6 +19,7 @@ import ByOtherNames.Aeson
     JSONRubric (JSON),
     JSONSum (..),
     JSONEnum (..),
+    GeneralJSONEnum (..),
     alias,
     aliasListBegin,
     aliasListEnd,

@@ -1,11 +1,14 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE ApplicativeDo #-}
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE DerivingVia #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
@@ -61,7 +64,7 @@
 --       $ aliasListEnd
 -- :}
 --
--- Some limitations:
+-- Some observations:
 --
 -- - Fields in branches of sum types can't have selectors. When there is more than one field in a branch, they are parsed as a JSON Array.
 --
@@ -95,7 +98,9 @@ module ByOtherNames.Aeson
     JSONRecord (..),
     JSONSum (..),
     JSONEnum (..),
-
+    -- ** Advanced JSON helpers
+    WhichRep(..),
+    GeneralJSONEnum (..),
     -- * Re-exports from ByOtherNames
     Aliased (aliases),
     aliasListBegin,
@@ -119,6 +124,7 @@ import Data.Proxy
 import Data.Void
 import GHC.Generics
 import GHC.TypeLits
+import Data.Coerce
 
 -- | Aliases for JSON serialization fall under this 'Rubric'.
 -- The constructor 'JSON' is used as a type, with DataKinds.
@@ -148,6 +154,9 @@ newtype JSONSum objectName r = JSONSum r
 -- Each constructor is serialized to a JSON string.
 type JSONEnum :: Type -> Type
 newtype JSONEnum r = JSONEnum r
+--  deriving FromJSON via (GeneralJSONEnum 'JSON ThisType r)
+--  deriving ToJSON via (GeneralJSONEnum 'JSON ThisType r)
+
 
 --
 --
@@ -260,6 +269,101 @@ instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum objectName r) 
 instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord objectName r) where
   toJSON (JSONRecord o) =
     object $ Data.Foldable.toList $ gFromRecord @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)
+
+--
+--
+
+data WhichRep =
+        ThisType
+      | WrappedType
+
+type GeneralJSONEnum :: k -> WhichRep -> Type -> Type
+newtype GeneralJSONEnum k which r = GeneralJSONEnum r
+
+--
+--
+instance (
+  Rubric k, 
+  AliasType k ~ Key, 
+  Aliased k r, 
+  GSum FromJSON (Rep r)) => FromJSON (GeneralJSONEnum k 'ThisType r) where
+  parseJSON v =
+    let parsers =
+          gToSum @FromJSON
+            (aliases @_ @k @r)
+            ( \a -> \case
+                ZeroSlots x -> EnumBranchParser \case
+                  String a' | a == fromText a' -> pure x
+                  _ -> mempty
+                SingleSlot _ -> EnumBranchParser mempty
+                ManySlots _ -> EnumBranchParser mempty
+            )
+            Proxy
+            Proxy
+        parserForValue v = asum $ fmap (($ v) . runEnumBranchParser) parsers
+     in GeneralJSONEnum . to <$> parserForValue v
+
+instance (
+  Rubric k, 
+  AliasType k ~ Key, 
+  Aliased k r', 
+  IsNewtype r r',
+  GSum FromJSON (Rep r')) => FromJSON (GeneralJSONEnum k 'WrappedType r) where
+  parseJSON v =
+    let parsers =
+          gToSum @FromJSON
+            (aliases @_ @k @r')
+            ( \a -> \case
+                ZeroSlots x -> EnumBranchParser \case
+                  String a' | a == fromText a' -> pure x
+                  _ -> mempty
+                SingleSlot _ -> EnumBranchParser mempty
+                ManySlots _ -> EnumBranchParser mempty
+            )
+            Proxy
+            Proxy
+        parserForValue v = asum $ fmap (($ v) . runEnumBranchParser) parsers
+     in GeneralJSONEnum . wrapInNewtype . to <$> parserForValue v
+
+instance (
+  Rubric k, 
+  AliasType k ~ Key, 
+  Aliased k r, 
+  GSum Impossible (Rep r)) => ToJSON (GeneralJSONEnum k 'ThisType r) where
+  toJSON (GeneralJSONEnum o) =
+    let (key, slots) = gFromSum @Impossible @(Rep r) @Key @Value @Value (aliases @_ @k @r) absurd (from @r o)
+     in case slots of
+          [] -> String (toText key)
+          [_] -> error "never happens"
+          _ -> error "never happens"
+
+instance (
+  Rubric k, 
+  AliasType k ~ Key, 
+  Aliased k r', 
+  IsNewtype r r',
+  GSum Impossible (Rep r')) 
+  => ToJSON (GeneralJSONEnum k 'WrappedType r) where
+  toJSON (GeneralJSONEnum o) =
+    let (key, slots) = gFromSum @Impossible @(Rep r') @Key @Value @Value (aliases @_ @k @r') absurd (from @r' . peelNewtype $ o)
+     in case slots of
+          [] -> String (toText key)
+          [_] -> error "never happens"
+          _ -> error "never happens"
+
+-- | TODO: move this to the main module if it proves useful.
+class IsNewtype n o | n -> o where
+  wrapInNewtype :: o -> n
+  peelNewtype :: n -> o
+
+instance (
+    Coercible n o, 
+    Generic n,
+    Rep n ~ M1 z1 z2 (M1 y1 y2 (M1 z1 z2 (K1 R o)))
+  ) => IsNewtype n o where
+  wrapInNewtype = coerce
+  peelNewtype = coerce
+
 
 -- $setup
 --
