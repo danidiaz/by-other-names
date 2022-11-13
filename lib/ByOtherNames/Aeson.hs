@@ -100,7 +100,6 @@ module ByOtherNames.Aeson
     JSONSum (..),
     JSONEnum (..),
     -- ** Advanced JSON helpers
-    WhichRep(..),
     GeneralJSONEnum (..),
     -- * Re-exports from ByOtherNames
     Aliased (aliases),
@@ -156,8 +155,8 @@ newtype JSONSum objectName r = JSONSum r
 type JSONEnum :: Type -> Type
 newtype JSONEnum r = JSONEnum r
 
-deriving via (GeneralJSONEnum 'JSON ThisType r) instance (Aliased 'JSON r, GSum Impossible (Rep r)) => FromJSON (JSONEnum r) 
-deriving via (GeneralJSONEnum 'JSON ThisType r) instance (Aliased 'JSON r, GSum Impossible (Rep r)) => ToJSON (JSONEnum r)
+deriving via (GeneralJSONEnum 'JSON r) instance (Aliased 'JSON r, GSum Impossible (Rep r)) => FromJSON (JSONEnum r) 
+deriving via (GeneralJSONEnum 'JSON r) instance (Aliased 'JSON r, GSum Impossible (Rep r)) => ToJSON (JSONEnum r)
 
 newtype EnumBranchParser v = EnumBranchParser {runEnumBranchParser :: Value -> Parser v}
   deriving stock (Functor)
@@ -247,25 +246,51 @@ instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord objectNa
 --
 --
 
-data WhichRep =
-        ThisType
-      | WrappedType
 
-type GeneralJSONEnum :: k -> WhichRep -> Type -> Type
-newtype GeneralJSONEnum k which r = GeneralJSONEnum r
+-- | A more flexible version of 'JSONEnum' that lets you use any 'Rubric' whose
+-- 'AliasType' is 'Data.Aeson.Key'.
+-- 
+-- It allows deriving 'FromJSON' and 'ToJSON' for a newtype, using the generic
+-- 'Rep' and the aliases of the underlying type, but __without__ defining
+-- 'FromJSON' and 'ToJSON' instances for the underlying type.
+-- 
+-- >>> :{
+-- data Enumy
+--   = Xx
+--   | Yy
+--   | Zz
+--   deriving (Read, Show, Eq, Generic)
+-- data JSONLocal
+-- -- We define a local rubric type to avoid colliding "Aliased" instances over Enumy.
+-- instance Rubric JSONLocal where
+--   type AliasType JSONLocal = Key
+-- instance Aliased JSONLocal Enumy where
+--   aliases =
+--     aliasListBegin
+--       $ alias @"Xx" "x"
+--       $ alias @"Yy" "y"
+--       $ alias @"Zz" "z"
+--       $ aliasListEnd
+-- -- We use the underlying Enumy type in DerivingVia.
+-- newtype EnumyN = EnumyN Enumy
+--     deriving (FromJSON, ToJSON) via (GeneralJSONEnum JSONLocal Enumy)
+-- :}
+--
+--
+type GeneralJSONEnum :: k -> Type -> Type
+newtype GeneralJSONEnum k r = GeneralJSONEnum r
 
 --
 --
 instance (
   Rubric k, 
   AliasType k ~ Key, 
-  Aliased k r', 
-  IsNewtype w r r',
-  GSum Impossible (Rep r')) => FromJSON (GeneralJSONEnum k w r) where
+  Aliased k r, 
+  GSum Impossible (Rep r)) => FromJSON (GeneralJSONEnum k r) where
   parseJSON v =
     let parsers =
           gToSum @Impossible
-            (aliases @_ @k @r')
+            (aliases @_ @k @r)
             ( \a -> \case
                 ZeroSlots x -> EnumBranchParser \case
                   String a' | a == fromText a' -> pure x
@@ -276,38 +301,20 @@ instance (
             Proxy
             Proxy
         parserForValue v = asum $ fmap (($ v) . runEnumBranchParser) parsers
-     in GeneralJSONEnum . wrapInNewtype @w . to <$> parserForValue v
+     in GeneralJSONEnum . to <$> parserForValue v
 
 instance (
   Rubric k, 
   AliasType k ~ Key, 
-  Aliased k r', 
-  IsNewtype w r r',
-  GSum Impossible (Rep r')) 
-  => ToJSON (GeneralJSONEnum k w r) where
+  Aliased k r, 
+  GSum Impossible (Rep r)) 
+  => ToJSON (GeneralJSONEnum k r) where
   toJSON (GeneralJSONEnum o) =
-    let (key, slots) = gFromSum @Impossible @(Rep r') @Key @Value @Value (aliases @_ @k @r') absurd (from @r' . peelNewtype @w $ o)
+    let (key, slots) = gFromSum @Impossible @(Rep r) @Key @Value @Value (aliases @_ @k @r) absurd (from @r o)
      in case slots of
           [] -> String (toText key)
           [_] -> error "never happens"
           _ -> error "never happens"
-
--- | TODO: move this to the main module if it proves useful.
-class IsNewtype (w :: WhichRep) n o | w n -> o where
-  wrapInNewtype :: o -> n
-  peelNewtype :: n -> o
-
-instance (
-    Coercible n o, 
-    Generic n,
-    Rep n ~ M1 z1 z2 (M1 y1 y2 (M1 z1 z2 (K1 R o)))
-  ) => IsNewtype 'WrappedType n o where
-  wrapInNewtype = coerce
-  peelNewtype = coerce
-
-instance IsNewtype 'ThisType n n where
-  wrapInNewtype = coerce
-  peelNewtype = coerce
 
 -- $setup
 --
@@ -319,6 +326,9 @@ instance IsNewtype 'ThisType n n where
 -- >>> :set -XMultiParamTypeClasses
 -- >>> :set -XDeriveGeneric
 -- >>> :set -XOverloadedStrings
+-- >>> :set -XTypeFamilies
+-- >>> :set -XDerivingStrategies
+-- >>> :set -XDerivingVia
 -- >>> import ByOtherNames.Aeson
 -- >>> import Data.Aeson
 -- >>> import Data.Aeson.Types
