@@ -100,6 +100,7 @@ module ByOtherNames.Aeson
     JSONSum (..),
     JSONEnum (..),
     -- ** Advanced JSON helpers
+    GeneralJSONRecord (..),
     GeneralJSONEnum (..),
     -- * Re-exports from ByOtherNames
     Aliased (aliases),
