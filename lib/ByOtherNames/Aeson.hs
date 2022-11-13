@@ -141,6 +141,9 @@ instance Rubric JSON where
 type JSONRecord :: Symbol -> Type -> Type
 newtype JSONRecord objectName r = JSONRecord r
 
+deriving via (GeneralJSONRecord 'JSON objectName r) instance (KnownSymbol objectName, Aliased 'JSON r, GRecord FromJSON (Rep r)) => FromJSON (JSONRecord objectName r) 
+deriving via (GeneralJSONRecord 'JSON objectName r) instance (Aliased 'JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord objectName r)
+
 -- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for sum types,
 -- using DerivingVia.
 --
@@ -213,17 +216,6 @@ instance (KnownSymbol objectName, Aliased JSON r, GSum FromJSON (Rep r)) => From
         parserForObject o = asum $ fmap (($ o) . runBranchParser) parsers
      in JSONSum . to <$> withObject (symbolVal (Proxy @objectName)) parserForObject v
 
---
---
-instance (KnownSymbol objectName, Aliased JSON r, GRecord FromJSON (Rep r)) => FromJSON (JSONRecord objectName r) where
-  parseJSON v =
-    let FieldParser parser =
-          gToRecord @FromJSON
-            (aliases @JSONRubric @JSON @r)
-            (\fieldName -> FieldParser (\o -> explicitParseField parseJSON o fieldName))
-        objectName = symbolVal (Proxy @objectName)
-     in JSONRecord . to <$> withObject objectName parser v
-
 newtype FieldParser a = FieldParser (Object -> Parser a)
   deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
 
@@ -239,13 +231,27 @@ instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum objectName r) 
 
 --
 --
-instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord objectName r) where
-  toJSON (JSONRecord o) =
-    object $ Data.Foldable.toList $ gFromRecord @ToJSON @(Rep r) @Key (aliases @JSONRubric @JSON @r) (\a v -> (a, toJSON v)) (from @r o)
 
---
---
+type GeneralJSONRecord :: rubric -> Symbol -> Type -> Type
+newtype GeneralJSONRecord rubric objectName r = GeneralJSONRecord r
 
+instance (KnownSymbol objectName, Rubric rubric, Aliased rubric r, 
+  AliasType rubric ~ Key, GRecord FromJSON (Rep r)) 
+  => FromJSON (GeneralJSONRecord rubric objectName r) where
+  parseJSON v =
+    let FieldParser parser =
+          gToRecord @FromJSON
+            (aliases @_ @rubric @r)
+            (\fieldName -> FieldParser (\o -> explicitParseField parseJSON o fieldName))
+        objectName = symbolVal (Proxy @objectName)
+     in GeneralJSONRecord . to <$> withObject objectName parser v
+
+instance (Rubric rubric, 
+  AliasType rubric ~ Key, 
+  Aliased rubric r, 
+  GRecord ToJSON (Rep r)) => ToJSON (GeneralJSONRecord rubric objectName r) where
+  toJSON (GeneralJSONRecord o) =
+    object $ Data.Foldable.toList $ gFromRecord @ToJSON @(Rep r) @Key (aliases @_ @rubric @r) (\a v -> (a, toJSON v)) (from @r o)
 
 -- | A more flexible version of 'JSONEnum' that lets you use any 'Rubric' whose
 -- 'AliasType' is 'Data.Aeson.Key'.
@@ -277,20 +283,20 @@ instance (Aliased JSON r, GRecord ToJSON (Rep r)) => ToJSON (JSONRecord objectNa
 -- :}
 --
 --
-type GeneralJSONEnum :: k -> Type -> Type
-newtype GeneralJSONEnum k r = GeneralJSONEnum r
+type GeneralJSONEnum :: rubric -> Type -> Type
+newtype GeneralJSONEnum rubric r = GeneralJSONEnum r
 
 --
 --
 instance (
-  Rubric k, 
-  AliasType k ~ Key, 
-  Aliased k r, 
-  GSum Impossible (Rep r)) => FromJSON (GeneralJSONEnum k r) where
+  Rubric rubric, 
+  AliasType rubric ~ Key, 
+  Aliased rubric r, 
+  GSum Impossible (Rep r)) => FromJSON (GeneralJSONEnum rubric r) where
   parseJSON v =
     let parsers =
           gToSum @Impossible
-            (aliases @_ @k @r)
+            (aliases @_ @rubric @r)
             ( \a -> \case
                 ZeroSlots x -> EnumBranchParser \case
                   String a' | a == fromText a' -> pure x
@@ -304,13 +310,13 @@ instance (
      in GeneralJSONEnum . to <$> parserForValue v
 
 instance (
-  Rubric k, 
-  AliasType k ~ Key, 
-  Aliased k r, 
+  Rubric rubric, 
+  AliasType rubric ~ Key, 
+  Aliased rubric r, 
   GSum Impossible (Rep r)) 
-  => ToJSON (GeneralJSONEnum k r) where
+  => ToJSON (GeneralJSONEnum rubric r) where
   toJSON (GeneralJSONEnum o) =
-    let (key, slots) = gFromSum @Impossible @(Rep r) @Key @Value @Value (aliases @_ @k @r) absurd (from @r o)
+    let (key, slots) = gFromSum @Impossible @(Rep r) @Key @Value @Value (aliases @_ @rubric @r) absurd (from @r o)
      in case slots of
           [] -> String (toText key)
           [_] -> error "never happens"
