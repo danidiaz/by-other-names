@@ -9,6 +9,8 @@
 
   JSONEnum instances implemented in terms of GeneralJSONEnum.
 
+- GeneralJSONRecord and GeneralJSONSum.
+
 1.2.1.0
 =======
 

@@ -126,7 +126,7 @@ import Data.Proxy
 import Data.Void
 import GHC.Generics
 import GHC.TypeLits
-import Data.Coerce
+import ByOtherNames.Constraint
 
 -- | Aliases for JSON serialization fall under this 'Rubric'.
 -- The constructor 'JSON' is used as a type, with DataKinds.
@@ -190,10 +190,6 @@ instance Applicative ProductInBranchParser where
 
 --
 --
-class (x ~ Void) => Impossible x
-
-instance (x ~ Void) => Impossible x
-
 
 newtype FieldParser a = FieldParser (Object -> Parser a)
   deriving (Functor, Applicative) via ((->) Object `Compose` Parser)

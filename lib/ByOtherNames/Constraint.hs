@@ -1,5 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
-module ByOtherNames.Constraint (Top) where
+{-# LANGUAGE TypeFamilies #-}
+module ByOtherNames.Constraint (Top, Impossible) where
+import Data.Void (Void)
 
 -- | A constraint that can always be satisfied.
 --
@@ -7,3 +9,9 @@ module ByOtherNames.Constraint (Top) where
 --
 class Top x
 instance Top x
+
+-- | A constraint that can't be satisfied.
+--
+-- Mostly useful with enum-like sum types to denote that they don't have fields.
+class (x ~ Void) => Impossible x
+instance (x ~ Void) => Impossible x
