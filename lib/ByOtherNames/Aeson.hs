@@ -101,6 +101,7 @@ module ByOtherNames.Aeson
     JSONEnum (..),
     -- ** Advanced JSON helpers
     GeneralJSONRecord (..),
+    GeneralJSONSum (..),
     GeneralJSONEnum (..),
     -- * Re-exports from ByOtherNames
     Aliased (aliases),
@@ -152,6 +153,9 @@ deriving via (GeneralJSONRecord 'JSON objectName r) instance (Aliased 'JSON r, G
 type JSONSum :: Symbol -> Type -> Type
 newtype JSONSum objectName r = JSONSum r
 
+deriving via (GeneralJSONSum 'JSON objectName r) instance (KnownSymbol objectName, Aliased 'JSON r, GSum FromJSON (Rep r)) => FromJSON (JSONSum objectName r) 
+deriving via (GeneralJSONSum 'JSON objectName r) instance (Aliased 'JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum objectName r)
+
 -- | Helper newtype for deriving 'FromJSON' and 'ToJSON' for enum-like sum types,
 -- using DerivingVia.
 --
@@ -190,11 +194,52 @@ class (x ~ Void) => Impossible x
 
 instance (x ~ Void) => Impossible x
 
-instance (KnownSymbol objectName, Aliased JSON r, GSum FromJSON (Rep r)) => FromJSON (JSONSum objectName r) where
+
+newtype FieldParser a = FieldParser (Object -> Parser a)
+  deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
+
+-- | A more flexible version of 'JSONSum' that lets you use any 'Rubric' whose
+-- 'AliasType' is 'Data.Aeson.Key'.
+-- 
+-- It allows deriving 'FromJSON' and 'ToJSON' for a newtype, using the generic
+-- 'Rep' and the aliases of the underlying type, but __without__ defining
+-- 'FromJSON' and 'ToJSON' instances for the underlying type.
+-- 
+-- >>> :{
+-- data Summy
+--   = Aa Int
+--   | Bb Bool
+--   | Cc
+--   deriving (Read, Show, Eq, Generic)
+-- data JSONLocal
+-- -- We define a local rubric type to avoid colliding "Aliased" instances over Foo.
+-- instance Rubric JSONLocal where
+--   type AliasType JSONLocal = Key
+-- instance Aliased JSONLocal Summy where
+--   aliases =
+--     aliasListBegin
+--       $ alias @"Aa" "Aax"
+--       $ alias @"Bb" "Bbx"
+--       $ alias @"Cc" "Cc1"
+--       $ aliasListEnd
+-- newtype SummyN = SummyN Summy
+--     deriving (FromJSON, ToJSON) via (GeneralJSONSum JSONLocal "obj" Summy)
+-- :}
+--
+--
+type GeneralJSONSum :: rubric -> Symbol -> Type -> Type
+newtype GeneralJSONSum rubric objectName r = GeneralJSONSum r
+
+instance (
+  KnownSymbol objectName, 
+  Rubric rubric, 
+  Aliased rubric r, 
+  AliasType rubric ~ Key, 
+  GSum FromJSON (Rep r)) => FromJSON (GeneralJSONSum rubric objectName r) where
   parseJSON v =
     let parsers =
           gToSum @FromJSON
-            (aliases @JSONRubric @JSON @r)
+            (aliases @_ @rubric @r)
             ( \a -> \case
                 ZeroSlots v -> BranchParser \o -> do
                   Null :: Value <- o .: a
@@ -215,23 +260,20 @@ instance (KnownSymbol objectName, Aliased JSON r, GSum FromJSON (Rep r)) => From
                   pure (r, vs)
             )
         parserForObject o = asum $ fmap (($ o) . runBranchParser) parsers
-     in JSONSum . to <$> withObject (symbolVal (Proxy @objectName)) parserForObject v
+     in GeneralJSONSum . to <$> withObject (symbolVal (Proxy @objectName)) parserForObject v
 
-newtype FieldParser a = FieldParser (Object -> Parser a)
-  deriving (Functor, Applicative) via ((->) Object `Compose` Parser)
 
---
---
-instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum objectName r) where
-  toJSON (JSONSum o) =
-    let (key, slots) = gFromSum @ToJSON @(Rep r) @Key @Value @Value (aliases @JSONRubric @JSON @r) toJSON (from @r o)
+instance (
+  Rubric rubric, 
+  Aliased rubric r, 
+  AliasType rubric ~ Key, 
+  GSum ToJSON (Rep r)) => ToJSON (GeneralJSONSum rubric objectName r) where
+  toJSON (GeneralJSONSum o) =
+    let (key, slots) = gFromSum @ToJSON @(Rep r) @Key @Value @Value (aliases @_ @rubric @r) toJSON (from @r o)
      in case slots of
           [] -> object [(key, Null)]
           [x] -> object [(key, toJSON x)]
           xs -> object [(key, toJSON xs)]
-
---
---
 
 
 -- | A more flexible version of 'JSONRecord' that lets you use any 'Rubric' whose
@@ -263,8 +305,11 @@ instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum objectName r) 
 type GeneralJSONRecord :: rubric -> Symbol -> Type -> Type
 newtype GeneralJSONRecord rubric objectName r = GeneralJSONRecord r
 
-instance (KnownSymbol objectName, Rubric rubric, Aliased rubric r, 
-  AliasType rubric ~ Key, GRecord FromJSON (Rep r)) 
+instance (KnownSymbol objectName, 
+  Rubric rubric, 
+  Aliased rubric r, 
+  AliasType rubric ~ Key, 
+  GRecord FromJSON (Rep r)) 
   => FromJSON (GeneralJSONRecord rubric objectName r) where
   parseJSON v =
     let FieldParser parser =
