@@ -233,6 +233,33 @@ instance (Aliased JSON r, GSum ToJSON (Rep r)) => ToJSON (JSONSum objectName r) 
 --
 --
 
+
+-- | A more flexible version of 'JSONRecord' that lets you use any 'Rubric' whose
+-- 'AliasType' is 'Data.Aeson.Key'.
+-- 
+-- It allows deriving 'FromJSON' and 'ToJSON' for a newtype, using the generic
+-- 'Rep' and the aliases of the underlying type, but __without__ defining
+-- 'FromJSON' and 'ToJSON' instances for the underlying type.
+-- 
+-- >>> :{
+-- data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
+--   deriving (Read, Show, Eq, Generic)
+-- data JSONLocal
+-- -- We define a local rubric type to avoid colliding "Aliased" instances over Foo.
+-- instance Rubric JSONLocal where
+--   type AliasType JSONLocal = Key
+-- instance Aliased JSONLocal Foo where
+--   aliases =
+--     aliasListBegin
+--       $ alias @"aa" "aax"
+--       $ alias @"bb" "bbx"
+--       $ alias @"cc" "ccx"
+--       $ aliasListEnd
+-- newtype FooN = FooN Foo
+--     deriving (FromJSON, ToJSON) via (GeneralJSONRecord JSONLocal "obj" Foo)
+-- :}
+--
+--
 type GeneralJSONRecord :: rubric -> Symbol -> Type -> Type
 newtype GeneralJSONRecord rubric objectName r = GeneralJSONRecord r
 
