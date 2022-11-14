@@ -23,6 +23,8 @@ build-depends:
 ```
 ## Other related packages
 
+- [autodocodec](https://hackage.haskell.org/package/autodocodec). A [family](https://github.com/NorfairKing/autodocodec#readme) of packages for deriving JSON and Openapi-related classes. More mature and fully-featured than this package. [A blog post about it](https://www.dylanamartin.com/2022/11/08/improving-the-aeson-experience.html).
+
 - [generics-sop](https://hackage.haskell.org/package/generics-sop)
 
 - [barbies](https://hackage.haskell.org/package/barbies)
