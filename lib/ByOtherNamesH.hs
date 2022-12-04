@@ -110,7 +110,7 @@ data BranchFields rep h where
     h v ->
     BranchFields (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) h
 
--- | A list of slots associated to each alias. Indexed by the types of each slot
+-- | A list of slots associated an alias. Indexed by the types of each slot
 -- and a type constructor that wraps each slot value.
 -- 
 -- For records, each field alias will have one and only one slot: the
@@ -207,7 +207,7 @@ aliasListBegin names =
   let (aliases, EmptyAliasList) = parseAliasTree @names @rep names
    in aliases
 
--- | The empty `AliasList`.
+-- | The empty 'AliasList'.
 aliasListEnd :: AliasList '[] a h
 aliasListEnd = EmptyAliasList
 
@@ -218,6 +218,7 @@ alias :: forall name slots a h names.
   AliasList ('(name, slots) : names) a h
 alias = ConsAliasList (Proxy @name)
 
+-- | The empty 'SlotList'.
 slotListEnd :: SlotList '[] h 
 slotListEnd = EmptyTuple
 
