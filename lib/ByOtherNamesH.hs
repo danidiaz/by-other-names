@@ -55,6 +55,7 @@ import Data.Proxy
 import Data.Traversable.WithIndex
 import GHC.Generics
 import GHC.TypeLits
+import Data.Functor.Identity
 
 type Aliases :: (Type -> Type) -> Type -> (Type -> Type) -> Type
 data Aliases rep a h where
@@ -205,25 +206,34 @@ slot hv = ConsTuple hv
 
 class GRecord rep where
   -- | Builds a parser for the entire generic 'Rep' out of parsers for each field.
-  gTraverseRecord ::
+  gToRecord ::
     Applicative g =>
     -- | Field aliases.
     Aliases rep a h ->
     (forall v. a -> h v -> g v) ->
     g (rep z)
+  gFromRecord ::
+    -- | Field aliases.
+    rep z ->
+    Aliases rep String Identity
 
 instance GRecord prod => GRecord (D1 x (C1 y prod)) where
-  gTraverseRecord (Record as) parseField =
-    M1 . M1 <$> gTraverseRecord as parseField
+  gToRecord (Record as) parseField =
+    M1 . M1 <$> gToRecord as parseField
+  gFromRecord (M1 (M1 prod)) =
+    Record (gFromRecord prod)
 
 instance
   (GRecord left, GRecord right) =>
   GRecord (left :*: right)
   where
-  gTraverseRecord (FieldTree aleft aright) parseField =
-    (:*:) <$> gTraverseRecord aleft parseField <*> gTraverseRecord aright parseField
+  gToRecord (FieldTree aleft aright) parseField =
+    (:*:) <$> gToRecord aleft parseField <*> gToRecord aright parseField
+  gFromRecord (left :*: right) =
+    FieldTree (gFromRecord left) (gFromRecord right)
 
-instance c v => GRecord (S1 x (Rec0 v)) where
-  gTraverseRecord (Field a hv) parseField =
+instance KnownSymbol fieldName => GRecord (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) (Rec0 v)) where
+  gToRecord (Field a hv) parseField =
     M1 . K1 <$> parseField a hv
+  gFromRecord (M1 (K1 v)) = Field (symbolVal (Proxy @fieldName)) (Identity v)
 

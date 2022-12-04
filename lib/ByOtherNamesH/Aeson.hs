@@ -91,7 +91,7 @@ instance (KnownSymbol objectName,
   => FromJSON (GeneralJSONRecord rubric objectName r) where
   parseJSON v =
     let FieldParser parser =
-          gTraverseRecord 
+          gToRecord 
             (aliases @_ @rubric @r)
             (\fieldName (JSONH {parseJ}) -> FieldParser (\o -> explicitParseField parseJ o fieldName))
         objectName = symbolVal (Proxy @objectName)

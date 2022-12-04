@@ -368,12 +368,6 @@ instance GRecord c prod => GRecord c (D1 x (C1 y prod)) where
     Record (gFromRecord @c as renderField prod)
   gRecordEnum (Record as) renderField = Record (gRecordEnum @c @prod as renderField)
 
-instance c v => GRecord c (S1 x (Rec0 v)) where
-  gToRecord (Field a) parseField =
-    M1 . K1 <$> parseField a
-  gFromRecord (Field a) renderField (M1 (K1 v)) = Field (renderField a v)
-  gRecordEnum (Field a) renderField = Field (a, renderField (Proxy @v))
-
 instance
   (GRecord c left, GRecord c right) =>
   GRecord c (left :*: right)
@@ -384,6 +378,13 @@ instance
     FieldTree (gFromRecord @c aleft renderField left) (gFromRecord @c aright renderField right)
   gRecordEnum (FieldTree aleft aright) renderField =
     FieldTree (gRecordEnum @c @left aleft renderField) (gRecordEnum @c @right aright renderField)
+
+instance c v => GRecord c (S1 x (Rec0 v)) where
+  gToRecord (Field a) parseField =
+    M1 . K1 <$> parseField a
+  gFromRecord (Field a) renderField (M1 (K1 v)) = Field (renderField a v)
+  gRecordEnum (Field a) renderField = Field (a, renderField (Proxy @v))
+
 
 -- | Helper for defining branch parsers.
 --
