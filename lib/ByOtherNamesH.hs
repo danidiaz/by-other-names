@@ -23,7 +23,7 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 
-module ByOtherNamesH () where
+module ByOtherNamesH where
 
 import Control.Applicative
 import Data.Foldable.WithIndex
@@ -131,3 +131,20 @@ instance  KnownSymbol name
   => ToAliasesH ('(name, '[v]) : rest) (S1 ('MetaSel (Just name) x y z) (Rec0 v)) rest where
   parseAliasTree (ConsAliasList _ a (ConsTuple hv EmptyTuple) rest) = (Field a hv, rest)
 
+instance ToAliasesH before (left :+: right) '[] => ToAliasesH before (D1 x (left :+: right)) '[] where
+  parseAliasTree as =
+    let (aliases', as') = parseAliasTree as
+     in (Sum aliases', as')
+
+instance (ToAliasesH before left middle, ToAliasesH middle right end) => ToAliasesH before (left :+: right) end where
+  parseAliasTree as =
+    let (left, middle) = parseAliasTree @before as
+        (right, end) = parseAliasTree @middle middle
+     in (BranchTree left right, end)
+
+instance (KnownSymbol name,
+          ToBranchFieldsH vs slots '[]) =>
+  ToAliasesH ('(name, vs) : rest) (C1 ('MetaCons name fixity False) slots) rest where
+    parseAliasTree (ConsAliasList _ a branchFields rest) = do
+        let (theBranchFields, EmptyTuple) = parseBranchFields @vs branchFields
+        (Branch a theBranchFields, rest)
