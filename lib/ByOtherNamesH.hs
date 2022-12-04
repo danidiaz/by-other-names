@@ -72,9 +72,9 @@ data BranchFieldsH rep h where
     h v ->
     BranchFieldsH (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) h
 
-data InductiveTuple :: (k -> Type) -> [k] -> Type where
-  EmptyTuple  :: InductiveTuple f '[]
-  ConsTuple :: f x -> InductiveTuple f xs -> InductiveTuple f (x ': xs)
+data InductiveTuple :: [Type] -> (Type -> Type) -> Type where
+  EmptyTuple  :: InductiveTuple '[] h
+  ConsTuple :: h x -> InductiveTuple xs h -> InductiveTuple (x ': xs) h
 
 -- | An intermediate datatype for specifying the aliases.  See
 -- 'aliasListBegin', 'alias' and 'aliasListEnd'.
@@ -84,5 +84,29 @@ data AliasListH code a h where
   ConsAliasList :: 
     Proxy name -> 
     a -> 
-    InductiveTuple h slots -> 
+    InductiveTuple slots h -> 
     AliasListH prev a h -> AliasListH ('(name,slots) : prev) a h
+
+type AssertNamesAreEqual :: Symbol -> Symbol -> Constraint
+type family AssertNamesAreEqual given expected where
+  AssertNamesAreEqual expected expected = ()
+  AssertNamesAreEqual given expected =
+    TypeError
+      ( Text "Expected field or constructor name \"" :<>: Text expected :<>: Text "\","
+          :$$: Text "but instead found name \"" :<>: Text given :<>: Text "\"."
+      )
+
+type MissingAlias :: Symbol -> Constraint
+type family MissingAlias expected where
+  MissingAlias expected =
+    TypeError
+      (Text "No alias given for field or constructor name \"" :<>: Text expected :<>: Text "\".")
+
+type ToAliasesH :: [(Symbol, [Type])] -> (Type -> Type) -> [(Symbol, [Type])] -> Constraint
+class ToAliasesH before rep after | before rep -> after, after rep -> before where
+  parseAliasTree :: AliasListH before a h -> (AliasesH rep a h, AliasListH after a h)
+
+type ToBranchFieldsH :: [Type] -> (Type -> Type) -> [Type] -> Constraint 
+class ToBranchFieldsH before rep after | before rep -> after, after rep -> before where
+  parseBranchFields :: InductiveTuple before h -> (BranchFieldsH rep h, InductiveTuple after h)
+
