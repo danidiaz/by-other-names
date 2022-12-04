@@ -66,15 +66,15 @@ type BranchFieldsH :: (Type -> Type) -> (Type -> Type) -> Type
 data BranchFieldsH rep h where
   BranchFieldTree :: 
     BranchFieldsH left h ->  
-    BranchFieldsH left h -> 
-    BranchFieldsH (left :+: right) h
+    BranchFieldsH right h -> 
+    BranchFieldsH (left :*: right) h
   BranchField ::
     h v ->
     BranchFieldsH (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) h
 
-data InductiveTuple :: [Type] -> (Type -> Type) -> Type where
-  EmptyTuple  :: InductiveTuple '[] h
-  ConsTuple :: h x -> InductiveTuple xs h -> InductiveTuple (x ': xs) h
+data TupleH :: [Type] -> (Type -> Type) -> Type where
+  EmptyTuple  :: TupleH '[] h
+  ConsTuple :: h x -> TupleH xs h -> TupleH (x ': xs) h
 
 -- | An intermediate datatype for specifying the aliases.  See
 -- 'aliasListBegin', 'alias' and 'aliasListEnd'.
@@ -84,7 +84,7 @@ data AliasListH code a h where
   ConsAliasList :: 
     Proxy name -> 
     a -> 
-    InductiveTuple slots h -> 
+    TupleH slots h -> 
     AliasListH prev a h -> AliasListH ('(name,slots) : prev) a h
 
 type AssertNamesAreEqual :: Symbol -> Symbol -> Constraint
@@ -108,5 +108,16 @@ class ToAliasesH before rep after | before rep -> after, after rep -> before whe
 
 type ToBranchFieldsH :: [Type] -> (Type -> Type) -> [Type] -> Constraint 
 class ToBranchFieldsH before rep after | before rep -> after, after rep -> before where
-  parseBranchFields :: InductiveTuple before h -> (BranchFieldsH rep h, InductiveTuple after h)
+  parseBranchFields :: TupleH before h -> (BranchFieldsH rep h, TupleH after h)
+
+instance ToBranchFieldsH (v ': vs) (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) vs where
+  parseBranchFields (ConsTuple hv rest) = (BranchField hv, rest) 
+
+instance (ToBranchFieldsH before left middle, 
+          ToBranchFieldsH middle right end) 
+  =>  ToBranchFieldsH before (left :*: right) end where
+  parseBranchFields t0 = do
+    let (leftResult, leftLeftover) = parseBranchFields @before t0
+        (rightResult, rightLeftover) = parseBranchFields @middle leftLeftover
+    (BranchFieldTree leftResult rightResult, rightLeftover)
 
