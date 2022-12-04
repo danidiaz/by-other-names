@@ -20,6 +20,37 @@
 {-# LANGUAGE UndecidableInstances #-}
 
 
+-- | A 'Rubric' for JSON serialization using Aeson, along with some helper
+-- newtypes and re-exports.
+--
+-- Required extensions:
+--
+-- - DataKinds
+-- - DeriveGeneric
+-- - DerivingVia
+-- - FlexibleInstances
+-- - MultiParamTypeClasses
+-- - OverloadedStrings
+-- - TypeApplications
+-- - ScopedTypeVariables
+--
+-- Example of use for a record type:
+--
+-- >>> :{
+-- data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
+--   deriving stock (Read, Show, Eq, Generic)
+--   deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
+-- instance Aliased JSON Foo where
+--   aliases =
+--     aliasListBegin
+--       . alias @"aa" "aax" (singleSlot fromToJSON)
+--       . alias @"bb" "bbx" (singleSlot fromToJSON)
+--       . alias @"cc" "ccx" (singleSlot fromToJSON)
+--       . alias @"dd" "ddx" (singleSlot fromToJSON)
+--       . alias @"ee" "eex" (singleSlot fromToJSON)
+--       $ aliasListEnd
+-- :}
+--
 module ByOtherNamesH.Aeson
   ( -- * JSON helpers
     JSONRubric (..),
@@ -115,3 +146,23 @@ instance (Rubric rubric,
         eachFieldRendered = gBiliftA2RecordAliases combineAliases combineWrappers plainRecord deserializers
         Const objects = gToRecord  eachFieldRendered (\a (Const v) -> Const [(a,v)])
     object objects
+
+
+-- $setup
+--
+-- >>> :set -XBlockArguments
+-- >>> :set -XTypeApplications
+-- >>> :set -XDerivingStrategies
+-- >>> :set -XDerivingVia
+-- >>> :set -XDataKinds
+-- >>> :set -XMultiParamTypeClasses
+-- >>> :set -XDeriveGeneric
+-- >>> :set -XOverloadedStrings
+-- >>> :set -XTypeFamilies
+-- >>> :set -XDerivingStrategies
+-- >>> :set -XDerivingVia
+-- >>> import ByOtherNamesH.Aeson
+-- >>> import Data.Aeson
+-- >>> import Data.Aeson.Types
+-- >>> import GHC.Generics
+-- >>> import GHC.TypeLits

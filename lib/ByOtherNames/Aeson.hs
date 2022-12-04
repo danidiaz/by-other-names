@@ -36,7 +36,7 @@
 --
 -- >>> :{
 -- data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
---   deriving (Read, Show, Eq, Generic)
+--   deriving stock (Read, Show, Eq, Generic)
 --   deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
 -- instance Aliased JSON Foo where
 --   aliases =
@@ -54,7 +54,7 @@
 --   = Aa Int
 --   | Bb Bool
 --   | Cc
---   deriving (Read, Show, Eq, Generic)
+--   deriving stock (Read, Show, Eq, Generic)
 --   deriving (FromJSON, ToJSON) via (JSONSum "sum" Summy)
 -- instance Aliased JSON Summy where
 --   aliases =
@@ -80,7 +80,7 @@
 --   = Xx
 --   | Yy
 --   | Zz
---   deriving (Read, Show, Eq, Generic)
+--   deriving stock (Read, Show, Eq, Generic)
 --   deriving (FromJSON, ToJSON) via (JSONEnum Enumy)
 -- instance Aliased JSON Enumy where
 --   aliases =
