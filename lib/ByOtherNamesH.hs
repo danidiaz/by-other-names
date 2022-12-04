@@ -148,3 +148,33 @@ instance (KnownSymbol name,
     parseAliasTree (ConsAliasList _ a branchFields rest) = do
         let (theBranchFields, EmptyTuple) = parseBranchFields @vs branchFields
         (Branch a theBranchFields, rest)
+
+--
+--
+
+type AliasedH :: k -> Type -> Constraint
+class (RubricH k, Generic r) => AliasedH k r where
+  aliasesH :: AliasesH (Rep r) (AliasTypeH k) (WrapperTypeH k)
+
+type RubricH :: k -> Constraint
+class RubricH k where
+  type AliasTypeH k :: Type
+  type WrapperTypeH k :: Type -> Type
+
+aliasListBeginH :: forall names a h rep. (ToAliasesH names rep '[]) 
+  => AliasListH names a h
+  -> AliasesH rep a h
+aliasListBeginH names =
+  let (aliases, EmptyAliasList) = parseAliasTree @names @rep names
+   in aliases
+
+-- | The empty `AliasList`.
+aliasListEndH :: AliasListH '[] a h
+aliasListEndH = EmptyAliasList
+
+aliasH :: forall name slots a h names. 
+  a -> 
+  TupleH slots h ->
+  AliasListH names a h -> 
+  AliasListH ('(name, slots) : names) a h
+aliasH = ConsAliasList (Proxy @name)
