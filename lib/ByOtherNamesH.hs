@@ -96,12 +96,6 @@ type family AssertNamesAreEqual given expected where
           :$$: Text "but instead found name \"" :<>: Text given :<>: Text "\"."
       )
 
-type MissingAlias :: Symbol -> Constraint
-type family MissingAlias expected where
-  MissingAlias expected =
-    TypeError
-      (Text "No alias given for field or constructor name \"" :<>: Text expected :<>: Text "\".")
-
 type ToAliasesH :: [(Symbol, [Type])] -> (Type -> Type) -> [(Symbol, [Type])] -> Constraint
 class ToAliasesH before rep after | before rep -> after, after rep -> before where
   parseAliasTree :: AliasListH before a h -> (AliasesH rep a h, AliasListH after a h)
@@ -120,4 +114,20 @@ instance (ToBranchFieldsH before left middle,
     let (leftResult, leftLeftover) = parseBranchFields @before t0
         (rightResult, rightLeftover) = parseBranchFields @middle leftLeftover
     (BranchFieldTree leftResult rightResult, rightLeftover)
+
+instance ToAliasesH before tree '[] => ToAliasesH before (D1 x (C1 y tree)) '[] where
+  parseAliasTree as =
+    let (aliases', as') = parseAliasTree as
+     in (Record aliases', as')
+
+instance (ToAliasesH before left middle, ToAliasesH middle right end) 
+  => ToAliasesH before (left :*: right) end where
+  parseAliasTree as =
+    let (left, middle) = parseAliasTree @before as
+        (right, end) = parseAliasTree @middle middle
+     in (FieldTree left right, end)
+
+instance  KnownSymbol name 
+  => ToAliasesH ('(name, '[v]) : rest) (S1 ('MetaSel (Just name) x y z) (Rec0 v)) rest where
+  parseAliasTree (ConsAliasList _ a (ConsTuple hv EmptyTuple) rest) = (Field a hv, rest)
 
