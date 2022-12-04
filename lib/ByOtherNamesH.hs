@@ -213,15 +213,25 @@ class GRecord rep where
     (forall v. a -> h v -> g v) ->
     g (rep z)
   gFromRecord ::
-    -- | Field aliases.
+    -- | Record representation.
     rep z ->
     Aliases rep String Identity
+  gBiliftA2RecordAliases ::
+    -- | Combine aliases
+    (a1 -> a2 -> ar) -> 
+    -- | Combine slots
+    (forall v. h1 v -> h2 v -> hr v) ->
+    Aliases rep a1 h1 ->
+    Aliases rep a2 h2 ->
+    Aliases rep ar hr
 
 instance GRecord prod => GRecord (D1 x (C1 y prod)) where
   gToRecord (Record as) parseField =
     M1 . M1 <$> gToRecord as parseField
   gFromRecord (M1 (M1 prod)) =
     Record (gFromRecord prod)
+  gBiliftA2RecordAliases f g (Record a1) (Record a2) =
+    Record (gBiliftA2RecordAliases f g a1 a2)
 
 instance
   (GRecord left, GRecord right) =>
@@ -231,9 +241,12 @@ instance
     (:*:) <$> gToRecord aleft parseField <*> gToRecord aright parseField
   gFromRecord (left :*: right) =
     FieldTree (gFromRecord left) (gFromRecord right)
+  gBiliftA2RecordAliases f g (FieldTree left1 right1) (FieldTree left2 right2) =
+    FieldTree (gBiliftA2RecordAliases f g left1 left2) (gBiliftA2RecordAliases f g right1 right2)
 
 instance KnownSymbol fieldName => GRecord (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) (Rec0 v)) where
   gToRecord (Field a hv) parseField =
     M1 . K1 <$> parseField a hv
   gFromRecord (M1 (K1 v)) = Field (symbolVal (Proxy @fieldName)) (Identity v)
-
+  gBiliftA2RecordAliases f g (Field a1 h1) (Field a2 h2) =
+    Field (f a1 a2) (g h1 h2)

@@ -37,7 +37,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
-  deriving (Read, Show, Eq, Generic)
+  deriving stock (Read, Show, Eq, Generic)
   deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
 
 instance Aliased JSON Foo where

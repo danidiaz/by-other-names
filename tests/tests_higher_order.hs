@@ -13,6 +13,7 @@
 module Main where
 
 import ByOtherNamesH
+import ByOtherNamesH.Aeson
 import ByOtherNames.TH
 import Control.Monad (forM)
 import Data.Aeson
@@ -26,25 +27,24 @@ import Test.Tasty.HUnit
 
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
-  deriving (Read, Show, Eq, Generic)
-
-data X
-
-data Shower v = Shower (v -> String)
-
-instance Rubric X where
-  type AliasType X = String
-  type WrapperType X = Shower 
-
-instance Aliased X Foo where
+  deriving stock (Read, Show, Eq, Generic)
+  deriving (FromJSON, ToJSON) via (JSONRecord "obj" Foo)
+instance Aliased JSON Foo where
   aliases =
     aliasListBegin
-      . alias @"aa" "aax" (singleSlot (Shower show))
-      . alias @"bb" "bbx" (singleSlot (Shower show))
-      . alias @"cc" "ccx" (singleSlot (Shower show))
-      . alias @"dd" "ddx" (singleSlot (Shower show))
-      . alias @"ee" "eex" (singleSlot (Shower show))
+      . alias @"aa" "aax" (singleSlot fromToJSON)
+      . alias @"bb" "bbx" (singleSlot fromToJSON)
+      . alias @"cc" "ccx" (singleSlot fromToJSON)
+      . alias @"dd" "ddx" (singleSlot fromToJSON)
+      . alias @"ee" "eex" (singleSlot fromToJSON)
       $ aliasListEnd
+
+roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO ()
+roundtrip t =
+  let reparsed = parseEither parseJSON (toJSON t)
+   in case reparsed of
+        Left err -> assertFailure err
+        Right t' -> assertEqual "" t t'
 
 --
 --
@@ -55,4 +55,5 @@ tests :: TestTree
 tests =
   testGroup
     "All"
-    [    ]
+    [ testCase "recordRoundtrip" $ roundtrip $ Foo 0 False 'f' "foo" 3
+    ]
