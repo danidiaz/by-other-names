@@ -72,9 +72,9 @@ data BranchFieldsH rep h where
     h v ->
     BranchFieldsH (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) h
 
-data TupleH :: [Type] -> (Type -> Type) -> Type where
-  EmptyTuple  :: TupleH '[] h
-  ConsTuple :: h x -> TupleH xs h -> TupleH (x ': xs) h
+data SlotListH :: [Type] -> (Type -> Type) -> Type where
+  EmptyTuple  :: SlotListH '[] h
+  ConsTuple :: h x -> SlotListH xs h -> SlotListH (x ': xs) h
 
 -- | An intermediate datatype for specifying the aliases.  See
 -- 'aliasListBegin', 'alias' and 'aliasListEnd'.
@@ -84,17 +84,8 @@ data AliasListH code a h where
   ConsAliasList :: 
     Proxy name -> 
     a -> 
-    TupleH slots h -> 
+    SlotListH slots h -> 
     AliasListH prev a h -> AliasListH ('(name,slots) : prev) a h
-
-type AssertNamesAreEqual :: Symbol -> Symbol -> Constraint
-type family AssertNamesAreEqual given expected where
-  AssertNamesAreEqual expected expected = ()
-  AssertNamesAreEqual given expected =
-    TypeError
-      ( Text "Expected field or constructor name \"" :<>: Text expected :<>: Text "\","
-          :$$: Text "but instead found name \"" :<>: Text given :<>: Text "\"."
-      )
 
 type ToAliasesH :: [(Symbol, [Type])] -> (Type -> Type) -> [(Symbol, [Type])] -> Constraint
 class ToAliasesH before rep after | before rep -> after, after rep -> before where
@@ -102,7 +93,7 @@ class ToAliasesH before rep after | before rep -> after, after rep -> before whe
 
 type ToBranchFieldsH :: [Type] -> (Type -> Type) -> [Type] -> Constraint 
 class ToBranchFieldsH before rep after | before rep -> after, after rep -> before where
-  parseBranchFields :: TupleH before h -> (BranchFieldsH rep h, TupleH after h)
+  parseBranchFields :: SlotListH before h -> (BranchFieldsH rep h, SlotListH after h)
 
 instance ToBranchFieldsH (v ': vs) (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) vs where
   parseBranchFields (ConsTuple hv rest) = (BranchField hv, rest) 
@@ -174,7 +165,16 @@ aliasListEndH = EmptyAliasList
 
 aliasH :: forall name slots a h names. 
   a -> 
-  TupleH slots h ->
+  SlotListH slots h ->
   AliasListH names a h -> 
   AliasListH ('(name, slots) : names) a h
 aliasH = ConsAliasList (Proxy @name)
+
+slotListEnd :: SlotListH '[] h 
+slotListEnd = EmptyTuple
+
+singleSlot :: h v -> SlotListH '[v] h 
+singleSlot hv = ConsTuple hv EmptyTuple
+
+slot :: h v -> SlotListH rest h  -> SlotListH (v ': rest) h
+slot hv = ConsTuple hv 
