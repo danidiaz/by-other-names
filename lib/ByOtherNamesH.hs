@@ -23,10 +23,25 @@
 {-# LANGUAGE UndecidableInstances #-}
 {-# OPTIONS_GHC -Wno-missing-methods #-}
 
--- | If you plan to use both 'ByOtherNames' and 'ByOtherNamesH', import this
--- module qualified to avoid name collisions:
+-- | 
+-- This module provides the general mechanism for defining field and branch
+-- aliases for algebraic datatypes.
+-- 
+-- Aliases can be defined for multiple contexts (json serialization, orms...).
+-- Each of those contexts is termed a Rubric, basically a marker datakind used
+-- to namespace the aliases.
+-- 
+-- This module should only be imported if you want to define your own adapter
+-- package for some new 'Rubric'. See "ByOtherNamesH.Aeson" for a concrete
+-- example.
+-- 
+-- This module provides a more versatile, but also more verbose, version of the
+-- functionality provided by "ByOtherNames". If you plan to use both
+-- "ByOtherNames" and "ByOtherNamesH", import this module qualified to avoid
+-- name collisions:
 --
 -- > import qualified ByOthernamesH as H
+--
 module ByOtherNamesH (
   -- * Aliases 
   Aliases,
@@ -95,6 +110,14 @@ data BranchFields rep h where
     h v ->
     BranchFields (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) h
 
+-- | A list of slots associated to each alias. Indexed by the types of each slot
+-- and a type constructor that wraps each slot value.
+-- 
+-- For records, each field alias will have one and only one slot: the
+-- corresponding record field. See 'singleSlot'.
+-- 
+-- For sum types, each branch alias might have zero or more slots, depending on
+-- the structure of the datatype. See 'slot' and 'slotListEnd'.
 data SlotList :: [Type] -> (Type -> Type) -> Type where
   EmptyTuple  :: SlotList '[] h
   ConsTuple :: h x -> SlotList xs h -> SlotList (x ': xs) h

@@ -23,6 +23,11 @@
 -- | A 'Rubric' for JSON serialization using Aeson, along with some helper
 -- newtypes and re-exports.
 --
+-- A more versatile version of the functionality provided by
+-- "ByOtherNames.Aeson", in that it allows you to manually specify
+-- parsers/decoders for each field. But, because of that, it's also more
+-- verbose.
+--
 -- Required extensions:
 --
 -- - DataKinds

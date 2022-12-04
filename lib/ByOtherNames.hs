@@ -1,4 +1,4 @@
--- | This package provides the general mechanism for defining field and branch
+-- | This module provides the general mechanism for defining field and branch
 -- aliases for algebraic datatypes.
 --
 -- Aliases can be defined for multiple contexts (json serialization, orms...).
