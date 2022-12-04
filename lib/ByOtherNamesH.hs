@@ -88,10 +88,12 @@ data AliasListH code a h where
     AliasListH prev a h -> AliasListH ('(name,slots) : prev) a h
 
 type ToAliasesH :: [(Symbol, [Type])] -> (Type -> Type) -> [(Symbol, [Type])] -> Constraint
+-- | The second functional dependency is needed for type inference to work. 
 class ToAliasesH before rep after | before rep -> after, after rep -> before where
   parseAliasTree :: AliasListH before a h -> (AliasesH rep a h, AliasListH after a h)
 
 type ToBranchFieldsH :: [Type] -> (Type -> Type) -> [Type] -> Constraint 
+-- | The second functional dependency is needed for type inference to work. 
 class ToBranchFieldsH before rep after | before rep -> after, after rep -> before where
   parseBranchFields :: SlotListH before h -> (BranchFieldsH rep h, SlotListH after h)
 
