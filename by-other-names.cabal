@@ -25,6 +25,7 @@ library
                        ByOtherNames.TH
                        ByOtherNames.Internal
                        ByOtherNamesH
+                       ByOtherNamesH.Aeson
   build-depends:       base                 >= 4.10.0.0 && < 5,
                        aeson                >= 2.1.0.0,
                        text                 >= 1.2.3.0,

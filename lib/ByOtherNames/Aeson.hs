@@ -316,8 +316,8 @@ instance (KnownSymbol objectName,
      in GeneralJSONRecord . to <$> withObject objectName parser v
 
 instance (Rubric rubric, 
-  AliasType rubric ~ Key, 
   Aliased rubric r, 
+  AliasType rubric ~ Key, 
   GRecord ToJSON (Rep r)) => ToJSON (GeneralJSONRecord rubric objectName r) where
   toJSON (GeneralJSONRecord o) =
     object $ Data.Foldable.toList $ gFromRecord @ToJSON @(Rep r) @Key (aliases @_ @rubric @r) (\a v -> (a, toJSON v)) (from @r o)
