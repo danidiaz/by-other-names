@@ -63,17 +63,18 @@ module ByOtherNamesH (
 ) where
 
 import Control.Applicative
-import Data.Foldable.WithIndex
-import Data.Functor.WithIndex
 import Data.Kind
 import Data.Proxy
-import Data.Traversable.WithIndex
 import GHC.Generics
 import GHC.TypeLits
 import Data.Functor.Identity
 
+-- | This datatype carries the field/branch aliases, along with a value wrapped in @h@
+-- for each field in the original datatype. 
+--
+-- It matches the shape of the generic 'Rep'.
 type Aliases :: (Type -> Type) -> Type -> (Type -> Type) -> Type
-data Aliases rep a h where
+data Aliases rep a (h :: Type -> Type) where
   Field :: 
     KnownSymbol fieldName => 
     a ->
@@ -84,6 +85,10 @@ data Aliases rep a h where
     a -> 
     BranchFields v h ->
     Aliases (C1 ('MetaCons branchName fixity sels) v) a h
+  EmptyBranch ::
+    KnownSymbol branchName => 
+    a -> 
+    Aliases (C1 ('MetaCons branchName fixity sels) U1) a h
   FieldTree ::
     Aliases left a h ->
     Aliases right a h ->
@@ -122,10 +127,13 @@ data SlotList :: [Type] -> (Type -> Type) -> Type where
   EmptyTuple  :: SlotList '[] h
   ConsTuple :: h x -> SlotList xs h -> SlotList (x ': xs) h
 
--- | An intermediate datatype for specifying the aliases.  See
--- 'aliasListBegin', 'alias' and 'aliasListEnd'.
+-- | An intermediate helper datatype for specifying the aliases.  
+--
+-- Indexed by a list of names accompanied by field types.
+--
+-- See 'aliasListBegin', 'alias' and 'aliasListEnd'.
 type AliasList :: [(Symbol, [Type])] -> Type -> (Type -> Type) -> Type
-data AliasList code a h where
+data AliasList (names_slots :: [(Symbol, [Type])]) a (h :: Type -> Type) where
   EmptyAliasList :: AliasList '[] a h
   ConsAliasList :: 
     Proxy name -> 
@@ -143,9 +151,6 @@ type ToBranchFields :: [Type] -> (Type -> Type) -> [Type] -> Constraint
 class ToBranchFields before rep after | before rep -> after, after rep -> before where
   parseBranchFields :: SlotList before h -> (BranchFields rep h, SlotList after h)
 
-instance ToBranchFields (v ': vs) (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) vs where
-  parseBranchFields (ConsTuple hv rest) = (BranchField hv, rest) 
-
 instance (ToBranchFields before left middle, 
           ToBranchFields middle right end) 
   =>  ToBranchFields before (left :*: right) end where
@@ -153,6 +158,9 @@ instance (ToBranchFields before left middle,
     let (leftResult, leftLeftover) = parseBranchFields @before t0
         (rightResult, rightLeftover) = parseBranchFields @middle leftLeftover
     (BranchFieldTree leftResult rightResult, rightLeftover)
+
+instance ToBranchFields (v ': vs) (S1 ('MetaSel 'Nothing unpackedness strictness laziness) (Rec0 v)) vs where
+  parseBranchFields (ConsTuple hv rest) = (BranchField hv, rest) 
 
 instance ToAliases before tree '[] => ToAliases before (D1 x (C1 y tree)) '[] where
   parseAliasTree as =
@@ -182,11 +190,23 @@ instance (ToAliases before left middle, ToAliases middle right end) => ToAliases
      in (BranchTree left right, end)
 
 instance (KnownSymbol name,
-          ToBranchFields vs slots '[]) =>
-  ToAliases ('(name, vs) : rest) (C1 ('MetaCons name fixity False) slots) rest where
+          ToBranchFields vs (S1 u v) '[]) =>
+  ToAliases ('(name, vs) : rest) (C1 ('MetaCons name fixity False) (S1 u v)) rest where
     parseAliasTree (ConsAliasList _ a branchFields rest) = do
         let (theBranchFields, EmptyTuple) = parseBranchFields @vs branchFields
         (Branch a theBranchFields, rest)
+
+instance (KnownSymbol name,
+          ToBranchFields vs (left :*: right) '[]) =>
+  ToAliases ('(name, vs) : rest) (C1 ('MetaCons name fixity False) (left :*: right)) rest where
+    parseAliasTree (ConsAliasList _ a branchFields rest) = do
+        let (theBranchFields, EmptyTuple) = parseBranchFields @vs branchFields
+        (Branch a theBranchFields, rest)
+
+instance KnownSymbol name =>
+  ToAliases ('(name, '[]) : rest) (C1 ('MetaCons name fixity False) U1) rest where
+    parseAliasTree (ConsAliasList _ a  EmptyTuple rest) = do
+        (EmptyBranch a, rest)
 
 --
 --
@@ -200,22 +220,24 @@ class Rubric k where
   type AliasType k :: Type
   type WrapperType k :: Type -> Type
 
-aliasListBegin :: forall names a h rep. (ToAliases names rep '[]) 
-  => AliasList names a h
-  -> Aliases rep a h
+aliasListBegin :: forall names_slots a h rep. (ToAliases names_slots rep '[]) 
+  => AliasList names_slots a h -- ^ indexed by a list of alias names / slots types
+  -> Aliases rep a h -- ^ indexed by a generic 'Rep' 
 aliasListBegin names =
-  let (aliases, EmptyAliasList) = parseAliasTree @names @rep names
+  let (aliases, EmptyAliasList) = parseAliasTree @names_slots @rep names
    in aliases
 
 -- | The empty 'AliasList'.
 aliasListEnd :: AliasList '[] a h
 aliasListEnd = EmptyAliasList
 
-alias :: forall name slots a h names. 
+alias :: forall name slots a h names_slots. 
+  -- | The alias value
   a -> 
+  -- | \"wrapped\" values for each slot of the alias
   SlotList slots h ->
-  AliasList names a h -> 
-  AliasList ('(name, slots) : names) a h
+  AliasList names_slots a h -> 
+  AliasList ('(name, slots) : names_slots) a h
 alias = ConsAliasList (Proxy @name)
 
 -- | The empty 'SlotList'.

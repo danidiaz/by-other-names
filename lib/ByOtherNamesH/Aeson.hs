@@ -22,11 +22,16 @@
 
 -- | A 'Rubric' for JSON serialization using Aeson, along with some helper
 -- newtypes and re-exports.
---
+-- 
 -- A more versatile version of the functionality provided by
 -- "ByOtherNames.Aeson", in that it allows you to manually specify
 -- parsers/decoders for each field. But, because of that, it's also more
--- verbose.
+-- verbose. And the error messages are worse.
+-- 
+-- If you plan to use both "ByOtherNames.Aeson" and "ByOtherNamesH.Aeson",
+-- import this module qualified to avoid name collisions:
+-- 
+-- > import qualified ByOthernamesH.Aeson as H
 --
 -- Required extensions:
 --
@@ -84,7 +89,6 @@ import ByOtherNamesH
 import Data.Aeson
 import Data.Aeson.Key (fromText, toText)
 import Data.Aeson.Types
-import Data.Foldable
 import Data.Functor.Compose
 import Data.Kind
 import Data.Proxy
@@ -103,6 +107,8 @@ instance Rubric JSON where
   type AliasType JSON = Key
   type WrapperType JSON = FromToJSON
 
+-- | Packs together a JSON parser and a encoder for some type.
+--
 data FromToJSON v = FromToJSON { 
     parseJSON' :: Value -> Parser v, 
     toJSON' :: v -> Value
@@ -117,6 +123,34 @@ newtype JSONRecord objectName r = JSONRecord r
 deriving via (GeneralJSONRecord 'JSON objectName r) instance (KnownSymbol objectName, Aliased 'JSON r, GRecord (Rep r)) => FromJSON (JSONRecord objectName r) 
 deriving via (GeneralJSONRecord 'JSON objectName r) instance (Aliased 'JSON r, GRecord (Rep r)) => ToJSON (JSONRecord objectName r)
 
+
+-- | A more flexible version of 'JSONRecord' that lets you use any 'Rubric' whose
+-- 'AliasType' is 'Data.Aeson.Key' and its 'WrapperType' is 'FromToJSON'.
+-- 
+-- It allows deriving 'FromJSON' and 'ToJSON' for a newtype, using the generic
+-- 'Rep' and the aliases of the underlying type, but __without__ defining
+-- 'FromJSON' and 'ToJSON' instances for the underlying type.
+-- 
+-- >>> :{
+-- data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char}
+--   deriving (Read, Show, Eq, Generic)
+-- data JSONLocal
+-- -- We define a local rubric type to avoid colliding "Aliased" instances over Foo.
+-- instance Rubric JSONLocal where
+--   type AliasType JSONLocal = Key
+--   type WrapperType JSONLocal = FromToJSON
+-- instance Aliased JSONLocal Foo where
+--   aliases =
+--     aliasListBegin
+--       $ alias @"aa" "aax" (singleSlot fromToJSON)
+--       $ alias @"bb" "bbx" (singleSlot fromToJSON)
+--       $ alias @"cc" "ccx" (singleSlot fromToJSON)
+--       $ aliasListEnd
+-- newtype FooN = FooN Foo
+--     deriving (FromJSON, ToJSON) via (GeneralJSONRecord JSONLocal "obj" Foo)
+-- :}
+--
+--
 type GeneralJSONRecord :: rubric -> Symbol -> Type -> Type
 newtype GeneralJSONRecord rubric objectName r = GeneralJSONRecord r
 

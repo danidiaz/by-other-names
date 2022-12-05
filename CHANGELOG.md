@@ -1,4 +1,13 @@
-﻿1.2.2.0
+﻿1.2.3.0
+=======
+
+- New modules 'ByOtherNamesH' and 'ByOtherNamesH.Aeson' (The "H" is for
+"higher-order") that let you go beyond field/branch aliases and specify
+"wrappers" for each field. This lets you for example to specify JSON parsers for
+a particular field without always depending on its `FromJSON`/`ToJSON`
+instances. 
+
+1.2.2.0
 =======
 
 - GeneralJSONEnum : like JSONEnum, but lets you define FromJSON/ToJSON instances

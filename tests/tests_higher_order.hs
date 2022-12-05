@@ -24,6 +24,7 @@ import GHC.Generics
 import GHC.TypeLits
 import Test.Tasty
 import Test.Tasty.HUnit
+import Data.Functor.Identity
 
 
 data Foo = Foo {aa :: Int, bb :: Bool, cc :: Char, dd :: String, ee :: Int}
@@ -39,6 +40,31 @@ instance Aliased JSON Foo where
       . alias @"ee" "eex" (singleSlot fromToJSON)
       $ aliasListEnd
 
+data X
+instance Rubric X where
+  type AliasType X = String
+  type WrapperType X = Identity
+
+data Summy
+  = Aa Int
+  | Bb Bool
+  | Cc
+  | Dd Char Bool Int
+  | Ee Int
+  deriving (Read, Show, Eq, Generic)
+
+instance Aliased X Summy where
+  aliases =
+    aliasListBegin
+      . alias @"Aa" "Aax" (singleSlot (Identity 5))
+      . alias @"Bb" "Bbx" (singleSlot (Identity False))
+      . alias @"Cc" "Ccx" slotListEnd
+      . alias @"Dd" "Ddx" (slot (Identity 'c') . slot (Identity False) . slot (Identity 5) $ slotListEnd)
+      . alias @"Ee" "Eex" (singleSlot (Identity 5))
+      $ aliasListEnd
+
+--
+--
 roundtrip :: forall t. (Eq t, Show t, FromJSON t, ToJSON t) => t -> IO ()
 roundtrip t =
   let reparsed = parseEither parseJSON (toJSON t)

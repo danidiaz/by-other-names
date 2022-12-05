@@ -64,8 +64,9 @@ import Data.Traversable.WithIndex
 import GHC.Generics
 import GHC.TypeLits
 
--- | This datatype carries the field aliases and matches the structure of the
---   generic Rep' shape.
+-- | This datatype carries the field/branch aliases. 
+--
+-- It matches the structure of the generic 'Rep'.
 type Aliases :: (Type -> Type) -> Type -> Type
 data Aliases rep a where
   Field :: KnownSymbol fieldName => a -> Aliases (S1 ('MetaSel ('Just fieldName) unpackedness strictness laziness) v) a
@@ -145,7 +146,7 @@ instance TraversableWithIndex String (Aliases rep) where
         let branchName = symbolVal (Proxy @branchName)
          in f branchName a
 
--- | An intermediate datatype for specifying the aliases.  See
+-- | An intermediate helper datatype for specifying the aliases.  See
 -- 'aliasListBegin', 'alias' and 'aliasListEnd'.
 type AliasList :: [Symbol] -> Type -> Type
 data AliasList names a where
@@ -155,7 +156,11 @@ data AliasList names a where
 -- | Add an alias to an `AliasList`.
 --
 -- __/TYPE APPLICATION REQUIRED!/__ You must provide the field/branch name using a type application.
-alias :: forall name a names. a -> AliasList names a -> AliasList (name : names) a
+alias :: forall name a names. 
+  -- | The alias value
+  a -> 
+  AliasList names a -> 
+  AliasList (name : names) a
 alias = Cons (Proxy @name)
 
 -- | Define the aliases for a type by listing them.
@@ -185,8 +190,8 @@ alias = Cons (Proxy @name)
 --
 --
 aliasListBegin :: forall names a rep. (AliasTree names rep '[]) 
-  => AliasList names a 
-  -> Aliases rep a
+  => AliasList names a -- ^ indexed by a list of names
+  -> Aliases rep a -- ^ indexed by a generic 'Rep'
 aliasListBegin names =
   let (aliases, Null) = parseAliasTree @names @rep names
    in aliases
